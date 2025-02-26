@@ -14,132 +14,138 @@ class CarCultureApp extends StatelessWidget {
   }
 }
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  String selectedCountry = "Malaysia";
+
+  final List<Map<String, String>> countries = [
+    {"name": "Malaysia", "code": "+60", "flag": "assets/images/malaysia_flag.png"},
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 50),
-                // Logo & Tagline
-                Text(
-                  'CarCulture.',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Courier',
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 30),
+        child: Column(
+          children: [
+            // 👇 Wraps the main content (logo + input box) inside Expanded to keep it centered
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center, // Keeps content centered
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Placeholder for Logo (Replace with actual logo)
+                  Container(
+                    width: 180,
+                    height: 100,
+                    color: Colors.grey[300], // Placeholder color
+                    alignment: Alignment.center,
+                    child: Text("Logo Here"),
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'drive together, connect forever',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontFamily: 'Courier',
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 50),
 
-                // Mobile Number Input
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            'assets/malaysia_flag.png', // Ensure flag image is in assets
-                            width: 24,
-                            height: 16,
+                  const SizedBox(height: 30),
+
+                  // Country Dropdown & Mobile Number Input
+                  Container(
+                    width: double.infinity,
+                    child: Row(
+                      children: [
+                        // Country Dropdown
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey),
+                            ),
                           ),
-                          const SizedBox(width: 5),
-                          Icon(Icons.arrow_drop_down, color: Colors.grey),
-                        ],
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedCountry,
+                              isExpanded: false, // Prevents width expansion
+                              items: countries.map((country) {
+                                return DropdownMenuItem<String>(
+                                  value: country["name"],
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Image.asset(
+                                        country["flag"]!,
+                                        width: 24,
+                                        height: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(country["code"]!),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedCountry = newValue!;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        // Mobile Number Input
+                        Expanded(
+                          child: TextField(
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              hintText: "mobile number",
+                              border: UnderlineInputBorder(),
+                              hintStyle: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ✅ This ensures the Terms & Conditions always remain at the bottom
+            Padding(
+              padding: const EdgeInsets.only(bottom: 30),
+              child: Text.rich(
+                TextSpan(
+                  text: "By continuing you agree to CarCulture.\n",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  children: [
+                    TextSpan(
+                      text: "Terms of Use",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        keyboardType: TextInputType.phone,
-                        decoration: InputDecoration(
-                          hintText: "mobile number",
-                          border: UnderlineInputBorder(),
-                          hintStyle: TextStyle(color: Colors.grey),
-                        ),
+                    TextSpan(text: " & "),
+                    TextSpan(
+                      text: "Privacy Policy",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 30),
-
-                // Terms and Privacy
-                Text.rich(
-                  TextSpan(
-                    text: "By continuing you agree to CarCulture.\n",
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                    children: [
-                      TextSpan(
-                        text: "Terms of Use",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      TextSpan(text: " & "),
-                      TextSpan(
-                        text: "Privacy Policy",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 20),
-
-                // Bottom Bar
-                Container(
-                  width: double.infinity,
-                  height: 5,
-                  color: Colors.black,
-                ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-
-          // Chat Button
-          Positioned(
-            top: 100,
-            right: 20,
-            child: FloatingActionButton(
-              backgroundColor: Colors.grey[300],
-              mini: true,
-              onPressed: () {},
-              child: Icon(Icons.chat, color: Colors.black),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
