@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "369564835534",
+    "project_id": "car-culture-fyp",
+    "storage_bucket": "car-culture-fyp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369564835534:android:9a1728a1333aa6d2983a9f",
+        "android_client_info": {
+          "package_name": "com.example.car_culture_fyp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQb0tMje6sU2oGybjIBnGXDSAs50F7Ss8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

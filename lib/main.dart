@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Test Firebase connection
+  testFirebaseConnection();
+
   runApp(CarCultureApp());
 }
 
@@ -101,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: TextField(
                             keyboardType: TextInputType.phone,
                             decoration: InputDecoration(
-                              hintText: "mobile number",
+                              hintText: "Mobile Number",
                               border: UnderlineInputBorder(),
                               hintStyle: TextStyle(color: Colors.grey),
                             ),
@@ -114,7 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            // ✅ This ensures the Terms & Conditions always remain at the bottom
             Padding(
               padding: const EdgeInsets.only(bottom: 30),
               child: Text.rich(
@@ -148,5 +159,21 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+}
+
+Future<void> testFirebaseConnection() async {
+  try {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    // Add a test document to Firestore
+    await firestore.collection('testCollection').add({
+      'message': 'Firebase is connected!',
+      'timestamp': DateTime.now(),
+    });
+
+    print("✅ Firebase is connected successfully!");
+  } catch (e) {
+    print("❌ Firebase connection failed: $e");
   }
 }
