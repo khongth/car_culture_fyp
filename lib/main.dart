@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,91 +12,143 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Test Firebase connection
-  testFirebaseConnection();
-
   runApp(CarCultureApp());
 }
 
-class OTPVerificationSheet extends StatelessWidget {
+class OTPVerificationSheet extends StatefulWidget {
+  @override
+  _OTPVerificationSheetState createState() => _OTPVerificationSheetState();
+}
+
+class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
+  List<TextEditingController> controllers = List.generate(4, (index) => TextEditingController());
+  List<FocusNode> focusNodes = List.generate(4, (index) => FocusNode());
+
+  void _onChanged(String value, int index) {
+    if (value.isNotEmpty) {
+      if (index < 3) {
+        FocusScope.of(context).requestFocus(focusNodes[index + 1]);
+      } else {
+        _verifyOTP();
+      }
+    }
+  }
+
+  void _onBackspace(String value, int index) {
+    if (value.isEmpty && index > 0) {
+      FocusScope.of(context).requestFocus(focusNodes[index - 1]);
+    }
+  }
+
+  void _verifyOTP() {
+    String otp = controllers.map((controller) => controller.text).join();
+    if (otp.length == 4) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height, // Make it full screen height
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.6, // Starts at 50% of screen height
-        minChildSize: 0.1, // Minimum size when dragged down
-        maxChildSize: 0.6, // Allows full expansion
-        expand: true, // Forces it to expand fully when dragged
-        builder: (context, scrollController) {
-          return Container(
+    return Stack(
+      children: [
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.6,
             padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
             ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Enter OTP",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "We have sent a verification code to your mobile number ****0898",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(4, (index) {
-                      return Container(
-                        width: 60,
-                        height: 60,
-                        margin: EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(color: Colors.grey[300]!, blurRadius: 5),
-                          ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "Enter OTP",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "We have sent a verification code to your mobile number ****0898",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 20),
+
+                // OTP Input Fields
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(4, (index) {
+                    return Container(
+                      width: 60,
+                      height: 60,
+                      margin: EdgeInsets.symmetric(horizontal: 8),
+                      child: RawKeyboardListener(
+                        focusNode: FocusNode(),
+                        onKey: (event) {
+                          if (event is RawKeyDownEvent &&
+                              event.logicalKey == LogicalKeyboardKey.backspace) {
+                            _onBackspace(controllers[index].text, index);
+                          }
+                        },
+                        child: TextField(
+                          controller: controllers[index],
+                          focusNode: focusNodes[index],
+                          maxLength: 1,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          decoration: InputDecoration(
+                            counterText: "",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onChanged: (value) => _onChanged(value, index),
+                          onSubmitted: (_) => _verifyOTP(),
+                          onEditingComplete: () {
+                            if (index == 3) _verifyOTP();
+                          },
                         ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () {
-                      print("Resend OTP");
-                    },
-                    child: Text(
-                      "Resend OTP",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.underline,
                       ),
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Resend OTP Button
+                TextButton(
+                  onPressed: () {
+                    print("Resend OTP");
+                  },
+                  child: Text(
+                    "Resend OTP",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -147,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Country Dropdown & Mobile Number Input
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // Aligns text field to the left
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Country Dropdown & Mobile Number Input
                       Row(
@@ -213,12 +267,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       // Continue Button (Now properly placed below the text field)
                       SizedBox(
-                        width: double.infinity, // Ensure the button is full width
+                        width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
                             showModalBottomSheet(
                               context: context,
-                              isScrollControlled: true, // Allows full-screen behavior
+                              isScrollControlled: true,
                               backgroundColor: Colors.transparent,
                               builder: (context) => OTPVerificationSheet(),
                             );
@@ -278,18 +332,3 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-Future<void> testFirebaseConnection() async {
-  try {
-    FirebaseFirestore firestore = FirebaseFirestore.instance;
-
-    // Add a test document to Firestore
-    await firestore.collection('testCollection').add({
-      'message': 'Firebase is connected!',
-      'timestamp': DateTime.now(),
-    });
-
-    print("✅ Firebase is connected successfully!");
-  } catch (e) {
-    print("❌ Firebase connection failed: $e");
-  }
-}
