@@ -190,14 +190,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
 
-                  Container(
-                    width: double.infinity,
-                    height: 100,
-                    alignment: Alignment.center,
-                    child: Placeholder(),
+                  SizedBox(
+                    child: Image.asset(
+                      "assets/images/CarCultureLogo.png",
+                      fit: BoxFit.contain,
+                    ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 100),
 
                   // Country Dropdown & Mobile Number Input
                   Column(
@@ -209,7 +209,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             decoration: BoxDecoration(
-                              color: Colors.grey[200],
                               border: Border(
                                 bottom: BorderSide(color: Colors.grey),
                               ),
@@ -249,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: TextField(
                               keyboardType: TextInputType.phone,
                               decoration: InputDecoration(
-                                hintText: "Mobile Number",
+                                hintText: " Mobile Number",
                                 enabledBorder: UnderlineInputBorder(
                                   borderSide: BorderSide(color: Colors.grey),
                                 ),
