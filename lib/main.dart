@@ -96,10 +96,10 @@ class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
                       width: 60,
                       height: 60,
                       margin: EdgeInsets.symmetric(horizontal: 8),
-                      child: RawKeyboardListener(
+                      child: KeyboardListener(
                         focusNode: FocusNode(),
-                        onKey: (event) {
-                          if (event is RawKeyDownEvent &&
+                        onKeyEvent: (event) {
+                          if (event is KeyDownEvent &&
                               event.logicalKey == LogicalKeyboardKey.backspace) {
                             _onBackspace(controllers[index].text, index);
                           }
