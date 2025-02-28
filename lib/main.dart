@@ -16,6 +16,89 @@ void main() async {
   runApp(CarCultureApp());
 }
 
+class OTPVerificationSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height, // Make it full screen height
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.6, // Starts at 50% of screen height
+        minChildSize: 0.1, // Minimum size when dragged down
+        maxChildSize: 0.6, // Allows full expansion
+        expand: true, // Forces it to expand fully when dragged
+        builder: (context, scrollController) {
+          return Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Enter OTP",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "We have sent a verification code to your mobile number ****0898",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (index) {
+                      return Container(
+                        width: 60,
+                        height: 60,
+                        margin: EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(color: Colors.grey[300]!, blurRadius: 5),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () {
+                      print("Resend OTP");
+                    },
+                    child: Text(
+                      "Resend OTP",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class CarCultureApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -46,82 +129,115 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 30),
         child: Column(
           children: [
-            // 👇 Wraps the main content (logo + input box) inside Expanded to keep it centered
+
             Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center, // Keeps content centered
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Placeholder for Logo (Replace with actual logo)
+
                   Container(
-                    width: 180,
+                    width: double.infinity,
                     height: 100,
-                    color: Colors.grey[300], // Placeholder color
                     alignment: Alignment.center,
-                    child: Text("Logo Here"),
+                    child: Placeholder(),
                   ),
 
                   const SizedBox(height: 30),
 
                   // Country Dropdown & Mobile Number Input
-                  Container(
-                    width: double.infinity,
-                    child: Row(
-                      children: [
-                        // Country Dropdown
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Colors.grey),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start, // Aligns text field to the left
+                    children: [
+                      // Country Dropdown & Mobile Number Input
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              border: Border(
+                                bottom: BorderSide(color: Colors.grey),
+                              ),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: selectedCountry,
+                                dropdownColor: Colors.grey[200],
+                                items: countries.map((country) {
+                                  return DropdownMenuItem<String>(
+                                    value: country["name"],
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Image.asset(
+                                          country["flag"]!,
+                                          width: 30,
+                                          height: 22,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(country["code"]!),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  setState(() {
+                                    selectedCountry = newValue!;
+                                  });
+                                },
+                              ),
                             ),
                           ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedCountry,
-                              isExpanded: false, // Prevents width expansion
-                              items: countries.map((country) {
-                                return DropdownMenuItem<String>(
-                                  value: country["name"],
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Image.asset(
-                                        country["flag"]!,
-                                        width: 24,
-                                        height: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(country["code"]!),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  selectedCountry = newValue!;
-                                });
-                              },
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              keyboardType: TextInputType.phone,
+                              decoration: InputDecoration(
+                                hintText: "Mobile Number",
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.blue),
+                                ),
+                              ),
                             ),
+                          ),
+                        ],
+                      ),
+
+                      // Add spacing before the button
+                      const SizedBox(height: 20),
+
+                      // Continue Button (Now properly placed below the text field)
+                      SizedBox(
+                        width: double.infinity, // Ensure the button is full width
+                        child: ElevatedButton(
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true, // Allows full-screen behavior
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => OTPVerificationSheet(),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            "Continue",
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                         ),
-
-                        const SizedBox(width: 10),
-
-                        // Mobile Number Input
-                        Expanded(
-                          child: TextField(
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              hintText: "Mobile Number",
-                              border: UnderlineInputBorder(),
-                              hintStyle: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+
                 ],
               ),
             ),
