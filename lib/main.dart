@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'home.dart';
@@ -16,17 +18,21 @@ void main() async {
 }
 
 class OTPVerificationSheet extends StatefulWidget {
+  final String verificationId;
+  OTPVerificationSheet({required this.verificationId});
+
   @override
   _OTPVerificationSheetState createState() => _OTPVerificationSheetState();
 }
 
 class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
-  List<TextEditingController> controllers = List.generate(4, (index) => TextEditingController());
-  List<FocusNode> focusNodes = List.generate(4, (index) => FocusNode());
+  List<TextEditingController> controllers = List.generate(6, (index) => TextEditingController());
+  List<FocusNode> focusNodes = List.generate(6, (index) => FocusNode());
+  bool isLoading = false;
 
   void _onChanged(String value, int index) {
     if (value.isNotEmpty) {
-      if (index < 3) {
+      if (index < 5) {
         FocusScope.of(context).requestFocus(focusNodes[index + 1]);
       } else {
         _verifyOTP();
@@ -40,12 +46,34 @@ class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
     }
   }
 
-  void _verifyOTP() {
+  Future<void> _verifyOTP() async {
+    setState(() => isLoading = true);
+
     String otp = controllers.map((controller) => controller.text).join();
-    if (otp.length == 4) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
+
+    if (otp.length == 6) {
+      try {
+        PhoneAuthCredential credential = PhoneAuthProvider.credential(
+          verificationId: widget.verificationId,
+          smsCode: otp,
+        );
+
+        // Authenticate with Firebase using the OTP credential
+        await FirebaseAuth.instance.signInWithCredential(credential);
+
+        // Navigate to HomeScreen upon successful authentication
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      } catch (e) {
+        setState(() => isLoading = false);
+        print("OTP Verification Failed: ${e.toString()}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Invalid OTP. Please try again.")),
+        );
+      }
+    } else {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please enter all 6 digits.")),
       );
     }
   }
@@ -91,10 +119,10 @@ class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
                 // OTP Input Fields
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
+                  children: List.generate(6, (index) {
                     return Container(
-                      width: 60,
-                      height: 60,
+                      width: 45,
+                      height: 45,
                       margin: EdgeInsets.symmetric(horizontal: 8),
                       child: KeyboardListener(
                         focusNode: FocusNode(),
@@ -110,7 +138,7 @@ class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
                           maxLength: 1,
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           decoration: InputDecoration(
                             counterText: "",
                             border: OutlineInputBorder(
@@ -120,7 +148,7 @@ class _OTPVerificationSheetState extends State<OTPVerificationSheet> {
                           onChanged: (value) => _onChanged(value, index),
                           onSubmitted: (_) => _verifyOTP(),
                           onEditingComplete: () {
-                            if (index == 3) _verifyOTP();
+                            if (index == 5) _verifyOTP();
                           },
                         ),
                       ),
@@ -169,11 +197,96 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  String selectedCountry = "Malaysia";
+  String selectedCountryCode = "+60";
+  final TextEditingController phoneController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool isOTPSent = false;
+  String verificationId = "";
+  bool isLoading = false;
 
-  final List<Map<String, String>> countries = [
-    {"name": "Malaysia", "code": "+60", "flag": "assets/images/malaysia_flag.png"},
-  ];
+  //Function to send OTP
+  Future<void> sendOTP() async {
+    setState(() => isLoading = true);
+
+    String phoneNumber = "$selectedCountryCode${phoneController.text.replaceAll(RegExp(r'\D'), '')}";
+
+    await Future.delayed(Duration(milliseconds: 100)); // Prevents UI freeze
+
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      timeout: Duration(seconds: 60),
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        await _auth.signInWithCredential(credential);
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        print("Verification failed: ${e.code} - ${e.message}");
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Verification Failed: ${e.message}"))
+        );
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        print("Sending OTP to: $phoneNumber");
+        setState(() {
+          this.verificationId = verificationId;
+          isOTPSent = true;
+          isLoading = false;
+        });
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        print("Auto-retrieval timeout. Verification ID: $verificationId");
+        this.verificationId = verificationId;
+      },
+    );
+  }
+
+  Future<void> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return; // User cancelled the sign-in
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _auth.signInWithCredential(credential);
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+    } catch (e) {
+      print("Google Sign-In Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign-In Failed: ${e.toString()}"))
+      );
+    }
+  }
+
+  // Apple Sign-In Function
+  Future<void> signInWithApple() async {
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final OAuthProvider oAuthProvider = OAuthProvider("apple.com");
+      final AuthCredential appleCredential = oAuthProvider.credential(
+        idToken: credential.identityToken,
+        accessToken: credential.authorizationCode,
+      );
+
+      await _auth.signInWithCredential(appleCredential);
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+    } catch (e) {
+      print("Apple Sign-In Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Apple Sign-In Failed: ${e.toString()}"))
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -215,29 +328,31 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: selectedCountry,
+                                value: selectedCountryCode,
                                 dropdownColor: Colors.grey[200],
-                                items: countries.map((country) {
+                                items: [
+                                  {"name": "Malaysia", "code": "+60", "flag": "assets/images/malaysia_flag.png"},
+                                  {"name": "US", "code": "+1", "flag": "assets/images/malaysia_flag.png"},
+                                ].map((country) {
                                   return DropdownMenuItem<String>(
-                                    value: country["name"],
+                                    value: country["code"],
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         Image.asset(
                                           country["flag"]!,
-                                          width: 30,
-                                          height: 22,
+                                          width: 24, // Adjust the size as needed
+                                          height: 16,
+                                          fit: BoxFit.cover,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Text(country["code"]!),
+                                        const SizedBox(width: 8), // Spacing between flag and text
+                                        Text("(${country["code"]})"),
                                       ],
                                     ),
                                   );
                                 }).toList(),
                                 onChanged: (String? newValue) {
                                   setState(() {
-                                    selectedCountry = newValue!;
+                                    selectedCountryCode = newValue!;
                                   });
                                 },
                               ),
@@ -246,6 +361,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: TextField(
+                              controller: phoneController,
                               keyboardType: TextInputType.phone,
                               decoration: InputDecoration(
                                 hintText: " Mobile Number",
@@ -264,17 +380,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Add spacing before the button
                       const SizedBox(height: 20),
 
-                      // Continue Button (Now properly placed below the text field)
+                      // Continue Button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => OTPVerificationSheet(),
-                            );
+                          onPressed: () async {
+                            if (!isOTPSent) {
+                              await sendOTP();
+                            }
+                            if (isOTPSent) {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => OTPVerificationSheet(verificationId: verificationId), // ✅ Pass verificationId
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             padding: EdgeInsets.symmetric(vertical: 14),
@@ -282,15 +403,43 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: Text(
-                            "Continue",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          child: isLoading
+                              ? CircularProgressIndicator(color: Colors.white)
+                              : Text("Send OTP", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold
+                          )),
+                        ),
+                      ),
+                      const SizedBox(height: 50),
+
+                      // Google Sign-In Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: signInWithGoogle,
+                          icon: Image.asset("assets/images/google.png", height: 24),
+                          label: Text("Sign in with Google"),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Apple Sign-In Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: signInWithApple,
+                          icon: Icon(Icons.apple, size: 24),
+                          label: Text("Sign in with Apple"),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 14),
                           ),
                         ),
                       ),
                     ],
                   ),
-
                 ],
               ),
             ),
@@ -330,4 +479,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

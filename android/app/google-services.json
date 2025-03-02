@@ -12,7 +12,20 @@
           "package_name": "com.example.car_culture_fyp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "369564835534-e1fn89ukdplvqu13u08qac2nbo3jo1sh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.car_culture_fyp",
+            "certificate_hash": "caa7f495929f1388fe2ad96c7585e87d83dd7387"
+          }
+        },
+        {
+          "client_id": "369564835534-hjvpmedpdecufoooefkcjrslb4fhup5e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAQb0tMje6sU2oGybjIBnGXDSAs50F7Ss8"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "369564835534-hjvpmedpdecufoooefkcjrslb4fhup5e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "369564835534-c2et3ubsmjefrmhf8edrsrjgfmu0m232.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.carCultureFyp"
+              }
+            }
+          ]
         }
       }
     }
