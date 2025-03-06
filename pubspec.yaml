@@ -37,8 +37,23 @@ dependencies:
   firebase_core: ^3.12.1
   firebase_auth: ^5.5.1
   cloud_firestore: ^5.6.5
+  firebase_storage: ^12.4.4
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.4
+  provider: ^6.1.2
+  flutter_login: ^5.0.0
+  lottie: ^3.3.1
+  flutter_bloc: ^9.1.0
+  dash_chat_2: ^0.0.21
+  firebase_analytics: ^11.4.4
+  google_fonts: ^6.2.1
+  delightful_toast: ^1.1.0
+  get_it: ^8.0.3
+  image_picker: ^1.1.2
+  path: ^1.9.1
+  rive: ^0.13.20
+  iconly: ^1.0.1
+  equatable: ^2.0.7
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +79,8 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/animations/
+    - assets/RiveAssets/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

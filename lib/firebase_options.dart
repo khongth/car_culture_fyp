@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '369564835534',
     projectId: 'car-culture-fyp',
     storageBucket: 'car-culture-fyp.firebasestorage.app',
+    androidClientId: '369564835534-e1fn89ukdplvqu13u08qac2nbo3jo1sh.apps.googleusercontent.com',
+    iosClientId: '369564835534-c2et3ubsmjefrmhf8edrsrjgfmu0m232.apps.googleusercontent.com',
     iosBundleId: 'com.example.carCultureFyp',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '369564835534',
     projectId: 'car-culture-fyp',
     storageBucket: 'car-culture-fyp.firebasestorage.app',
+    androidClientId: '369564835534-e1fn89ukdplvqu13u08qac2nbo3jo1sh.apps.googleusercontent.com',
+    iosClientId: '369564835534-c2et3ubsmjefrmhf8edrsrjgfmu0m232.apps.googleusercontent.com',
     iosBundleId: 'com.example.carCultureFyp',
   );
 
@@ -85,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'car-culture-fyp.firebasestorage.app',
     measurementId: 'G-3QQSF9NHEX',
   );
+
 }
