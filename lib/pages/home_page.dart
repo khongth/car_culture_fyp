@@ -1,112 +1,146 @@
-import 'package:car_culture_fyp/components/bottom_navigation_bar.dart';
+import 'dart:ui';
+import 'package:car_culture_fyp/components/post_input.dart';
+import 'package:car_culture_fyp/components/post_tile.dart';
+import 'package:car_culture_fyp/helper/navigatet_pages.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import '../components/loading_screen.dart';
-import '../home/home_cubit.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../components/text_field.dart';
-import '../components/user_post.dart';
-import '../components/drawer.dart';
+import 'package:iconly/iconly.dart';
+import 'package:provider/provider.dart';
+
+import '../components/bio_input.dart';
+import '../models/post.dart';
+import '../services/database_provider.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  // Add callback for drawer opening
+  final VoidCallback? onDrawerOpen;
+
+  const HomePage({super.key, this.onDrawerOpen});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  late TextEditingController textController;
+  late final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
+  late final listeningProvider = Provider.of<DatabaseProvider>(context);
+
+  final _messageController = TextEditingController();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    loadFollowingPosts(); // Force reload when dependencies change
+  }
 
   @override
   void initState() {
+
     super.initState();
-    Future.microtask(() {
-      textController = TextEditingController();
-      context.read<HomeCubit>().fetchPosts();
-    });
+    loadAllPosts();
   }
+
+  Future<void> loadAllPosts() async {
+    await databaseProvider.loadAllPosts();
+  }
+  Future<void> loadFollowingPosts() async {
+    await databaseProvider.loadFollowingPosts();
+  }
+
+  void _showPostInputBox(BuildContext context, TextEditingController textController) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: false,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
+          ),
+          child: PostInputBox(
+            textController: textController,
+            hintText: "What's on your mind?",
+            onPressed: () async {
+              await postMessage(_messageController.text.trim());
+            },
+            onPressedText: "Post",
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> postMessage(String message) async{
+    await databaseProvider.postMessage(message);
+  }
+
   @override
-  void dispose() {
-    textController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Car Culture"),
+          centerTitle: true,
+          leading: IconButton(
+            icon: Icon(Icons.menu),
+            onPressed: () {
+
+              if (widget.onDrawerOpen != null) {
+                widget.onDrawerOpen!();
+              }
+            },
+          ),
+          bottom: TabBar(
+              dividerColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Theme.of(context).colorScheme.primary,
+              labelColor: Theme.of(context).colorScheme.inversePrimary,
+              tabs: [
+                Tab(text: "For you"),
+                Tab(text: "Following"),
+              ]
+          ),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: Color.fromRGBO(69, 123, 157, 1),
+          shape: CircleBorder(),
+          elevation: 0,
+          highlightElevation: 0,
+          onPressed: () => _showPostInputBox(context, _messageController),
+          child: Icon(
+            Icons.add,
+          ),
+        ),
+
+        body: TabBarView(
+          children: [
+            _buildPostList(listeningProvider.allPosts),
+            _buildPostList(listeningProvider.followingPosts),
+          ]
+        )
+      ),
+    );
   }
 
-  Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser!;
-    final textController = TextEditingController();
+  Widget _buildPostList(List<Post> posts) {
+    return posts.isEmpty
+        ? Center(child: Text("Nothing here..."),
+    )
+        : ListView.builder(
+        itemCount: posts.length,
+        itemBuilder: (context,index) {
+          final post = posts[index];
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: BlocConsumer<HomeCubit, HomeState>(
-        listener: (context, state) {
-          print("Current state detected in listener: $state");
-          if (state is HomeError) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(state.message),
-            ));
-          }
-          if (state is HomeSignedOut) {
-            print("HomeSignedOut state detected, navigating to login...");
-            Navigator.pushReplacementNamed(context, '/login');
-          }
-        },
-        builder: (context, state) {
-          if (state is HomeLoading) {
-            return LoadingScreen();
-          }
-
-          if (state is HomeLoaded) {
-            return Center(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: state.posts.length,
-                      itemBuilder: (context, index) {
-                        final post = state.posts[index];
-                        return UserPost(
-                          message: post["message"],
-                          user: post["user"],
-                          time: post["time"],
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(25.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: MyTextField(
-                            controller: textController,
-                            hintText: "Share something here!",
-                            obscureText: false,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            context.read<HomeCubit>().postMessage(textController.text);
-                            textController.clear();
-                          },
-                          icon: Icon(
-                            Icons.arrow_circle_up_rounded,
-                            size: 40,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-          return const Center(child: CircularProgressIndicator());
-        },
-      ),
-
+          return PostTile(
+            post: post,
+            onUserTap: () => goUserPage(context, post.uid),
+            onPostTap: () => goPostPage(context, post),
+          );
+        }
     );
   }
 }
-
-

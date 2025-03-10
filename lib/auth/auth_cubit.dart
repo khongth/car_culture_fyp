@@ -1,9 +1,13 @@
 import 'package:bloc/bloc.dart';
+import 'package:car_culture_fyp/models/user.dart';
+import 'package:car_culture_fyp/services/database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../themes/theme_provider.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
+
+  final DatabaseService _db = DatabaseService();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final ThemeProvider themeProvider; // ✅ Ensure this is initialized
 
@@ -15,10 +19,13 @@ class AuthCubit extends Cubit<AuthState> {
     User? user = _firebaseAuth.currentUser;
 
     if (user != null) {
-      await user.reload(); // ✅ Ensure the latest user data is fetched from Firebase
-      user = _firebaseAuth.currentUser; // Get updated user object
+      await user.reload();
+      user = _firebaseAuth.currentUser;
 
-      emit(AuthState(user: user)); // ✅ Emit updated user info
+      UserProfile? userProfile = await _db.getUserFromFirebase(user!.uid);
+      String? username = userProfile?.username;
+
+      emit(AuthState(user: user, username: username)); // ✅ Emit updated user info
     }
   }
 
@@ -34,12 +41,6 @@ class AuthCubit extends Cubit<AuthState> {
       User? user = _firebaseAuth.currentUser;
 
       if (user != null) {
-        if (user.displayName == null || user.displayName!.isEmpty) { // ✅ Check if display name is missing
-          String username = email.split('@')[0]; // ✅ Extract username from email
-          await user.updateDisplayName(username); // ✅ Set display name
-          await user.reload(); // Refresh user data
-        }
-
         fetchUser(); // ✅ Fetch user info after login
         emit(AuthState(successMessage: "Login successful", user: _firebaseAuth.currentUser));
       }
@@ -58,8 +59,8 @@ class AuthCubit extends Cubit<AuthState> {
         email: email,
         password: password,
       );
-      User? user = userCredential.user;
-      await user?.updateDisplayName("New User");
+
+      await _db.saveUserInfoInFirebase(email: email);
 
       fetchUser();
       emit(AuthState(successMessage: "Signup successful", user: _firebaseAuth.currentUser));
@@ -83,14 +84,27 @@ class AuthCubit extends Cubit<AuthState> {
   // Logout and Force Light Mode
   Future<void> signOut() async {
     try {
+
       emit(state.copyWith(isLoading: true));
 
       await _firebaseAuth.signOut();
-      themeProvider.setLightMode(); // ✅ Force light mode on sign out
+      themeProvider.setLightMode();
 
       emit(AuthState(successMessage: "Signed out successfully", user: null));
     } catch (e) {
       emit(AuthState(errorMessage: "Error signing out: $e"));
     }
   }
+
+  Future<void> deleteAccount() async {
+    User? user = _firebaseAuth.currentUser;
+
+    if (user != null) {
+
+      await DatabaseService().deleteUserInfoFromFirebase(user.uid);
+
+      await user.delete();
+    }
+  }
+
 }

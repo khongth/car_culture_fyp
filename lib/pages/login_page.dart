@@ -7,6 +7,7 @@ import 'package:flutter_login/flutter_login.dart';
 import 'package:lottie/lottie.dart';
 
 import '../components/loading_screen.dart';
+import '../services/database_provider.dart';
 import '../themes/theme_provider.dart';
 
 class LoginPage extends StatelessWidget {
@@ -14,7 +15,7 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuthCubit(Provider.of<ThemeProvider>(context, listen: false)),
+      create: (_) => AuthCubit(Provider.of<ThemeProvider>(context, listen: false),),
       child: Scaffold(
         body: BlocConsumer<AuthCubit, AuthState>(
           listener: (context, state) {
