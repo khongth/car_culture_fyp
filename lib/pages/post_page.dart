@@ -1,13 +1,13 @@
-import 'package:car_culture_fyp/components/bottom_navigation_bar.dart';
+import 'dart:io';
 import 'package:car_culture_fyp/components/comment_tile.dart';
 import 'package:car_culture_fyp/services/database_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-
 import '../components/comment_input.dart';
 import '../helper/navigatet_pages.dart';
 import '../models/post.dart';
+import '../models/user.dart';
 
 class PostPage extends StatefulWidget {
   final Post post;
@@ -27,27 +27,49 @@ class _PostPageState extends State<PostPage> {
   late final listeningProvider = Provider.of<DatabaseProvider>(context);
   late final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
   final _commentController = TextEditingController();
+  File? _selectedImage;
+  UserProfile? user;
+
+  @override
+  void initState() {
+    super.initState();
+    loadUser();
+  }
+
+  Future<void> loadUser() async {
+    user = await databaseProvider.userProfile(widget.post.uid);  // Fetch user profile
+  }
 
   void _openNewCommentBox() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, // Allow the sheet to adjust height dynamically
       backgroundColor: Colors.transparent,
       enableDrag: false,
       builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
-          ),
-          child: CommentInputBox(
-            textController: _commentController,
-            post: widget.post,
-            onPressed: () async {
-              await _addComment();
-            },
-            onPressedText: "Post",
+        return SingleChildScrollView( // Make the content scrollable
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height, // Ensure minimum height is the screen height
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
+            ),
+            child: CommentInputBox(
+              textController: _commentController,
+              post: widget.post,
+              onPressed: () async {
+                await _addComment();
+              },
+              onPressedText: "Post",
+              onImageSelected: (image) {
+                setState(() {
+                  _selectedImage = image;
+                });
+              },
+            ),
           ),
         );
       },
@@ -55,10 +77,10 @@ class _PostPageState extends State<PostPage> {
   }
 
   Future<void> _addComment() async {
-    if (_commentController.text.trim().isEmpty) return;
+    if (_commentController.text.trim().isEmpty && _selectedImage == null) return;
 
     try {
-      await databaseProvider.addComment(widget.post.id, _commentController.text.trim());
+      await databaseProvider.addComment(widget.post.id, _commentController.text.trim(), imageFile: _selectedImage);
     } catch (e) {
       print(e);
     }
@@ -71,7 +93,6 @@ class _PostPageState extends State<PostPage> {
 
     DateTime localTime = widget.post.timestamp.toDate().toLocal();
     String formattedTimestamp = DateFormat('hh:mm a · MMM d, yyyy').format(localTime);
-
 
     bool likedByCurrentUser = listeningProvider.isPostLikedByCurrentUser(widget.post.id);
     int likeCount = listeningProvider.getLikeCount(widget.post.id);
@@ -101,7 +122,12 @@ class _PostPageState extends State<PostPage> {
                     onTap: () => goUserPage(context, widget.post.uid),
                     child: CircleAvatar(
                       radius: 24,
-                      backgroundImage: NetworkImage('https://avatars.githubusercontent.com/u/91388754?v=4'),
+                      backgroundImage: user?.profileImageUrl != null
+                          ? NetworkImage(user!.profileImageUrl)  // Display user's profile picture
+                          : null,
+                      child: user?.profileImageUrl == null
+                          ? CircularProgressIndicator()  // Loading indicator if the image is not available
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -109,27 +135,25 @@ class _PostPageState extends State<PostPage> {
                   // Username & Email
                   GestureDetector(
                     onTap: () => goUserPage(context, widget.post.uid),
-                    child: Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.post.name,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.inversePrimary,
-                            ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.post.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.inversePrimary,
                           ),
-                          Text(
-                            "@${widget.post.username}",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.tertiary,
-                            ),
+                        ),
+                        Text(
+                          "@${widget.post.username}",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.tertiary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -155,12 +179,51 @@ class _PostPageState extends State<PostPage> {
             //Post Message
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                widget.post.message,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Theme.of(context).colorScheme.inversePrimary,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Post Text
+                  Text(
+                    widget.post.message,
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Post Image (if available)
+                  if (widget.post.imageUrl != null && widget.post.imageUrl!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12), // Optional: Rounded corners
+                      child: Image.network(
+                        widget.post.imageUrl!,
+                        width: double.infinity, // Full width
+                        fit: BoxFit.cover, // Scale image properly
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                  (loadingProgress.expectedTotalBytes ?? 1)
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey[300],
+                            child: Center(
+                              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
               ),
             ),
 

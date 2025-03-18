@@ -1,5 +1,7 @@
 //Process data to be used
 
+import 'dart:io';
+
 import 'package:car_culture_fyp/models/post.dart';
 import 'package:car_culture_fyp/models/user.dart';
 import 'package:car_culture_fyp/services/database_service.dart';
@@ -10,6 +12,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart';
 import '../auth/auth_cubit.dart';
 import '../models/comment.dart';
+import '../models/marketplace.dart';
 
 class DatabaseProvider extends ChangeNotifier {
   final _db = DatabaseService();
@@ -19,14 +22,16 @@ class DatabaseProvider extends ChangeNotifier {
 
   Future<void> updateBio(String bio) => _db.updateUserBioInFirebase(bio);
 
+  Future<void> updateProfilePicture(File imageFile) => _db.updateUserProfileImageInFirebase(imageFile);
+
   List<Post> _allPosts = [];
   List<Post> _followingPosts = [];
 
   List<Post> get allPosts => _allPosts;
   List<Post> get followingPosts => _followingPosts;
 
-  Future<void> postMessage(String message) async {
-    await _db.postMessageInFirebase(message);
+  Future<void> postMessage(String message, {File? imageFile}) async {
+    await _db.postMessageInFirebase(message, imageFile: imageFile);
 
     await loadAllPosts();
   }
@@ -130,8 +135,8 @@ class DatabaseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addComment(String postId, message) async {
-    await _db.addCommentInFirebase(postId, message);
+  Future<void> addComment(String postId, message, {File? imageFile}) async {
+    await _db.addCommentInFirebase(postId, message, imageFile: imageFile);
     await loadComments(postId);
   }
 
@@ -339,5 +344,18 @@ class DatabaseProvider extends ChangeNotifier {
     } catch (e) {
       print(e);
     }
+  }
+
+  List<MarketplacePost> _marketplacePosts = [];
+  List<MarketplacePost> get marketplacePosts => _marketplacePosts;
+
+  Future<void> postMarketplaceItem(String title, String description, double price, {File? imageFile}) async {
+    await _db.postMarketplaceItem(title, description, price, imageFile: imageFile);
+    await loadMarketplacePosts();
+  }
+
+  Future<void> loadMarketplacePosts() async {
+    _marketplacePosts = await _db.getMarketplacePosts();
+    notifyListeners();
   }
 }

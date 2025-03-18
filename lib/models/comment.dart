@@ -8,6 +8,7 @@ class Comment {
   final String username;
   final String message;
   final dynamic timestamp;
+  final String? imageUrl;
 
   Comment({
     required this.id,
@@ -17,6 +18,7 @@ class Comment {
     required this.username,
     required this.message,
     required this.timestamp,
+    this.imageUrl,
   });
 
   factory Comment.fromDocument(DocumentSnapshot doc) {
@@ -39,6 +41,7 @@ class Comment {
       'username': username,
       'message': message,
       'timestamp': timestamp,
+      'imageUrl': imageUrl,
     };
   }
 }

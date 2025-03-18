@@ -1,12 +1,10 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:car_culture_fyp/components/post_input.dart';
 import 'package:car_culture_fyp/components/post_tile.dart';
 import 'package:car_culture_fyp/helper/navigatet_pages.dart';
 import 'package:flutter/material.dart';
-import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
-
-import '../components/bio_input.dart';
 import '../models/post.dart';
 import '../services/database_provider.dart';
 
@@ -47,6 +45,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showPostInputBox(BuildContext context, TextEditingController textController) {
+    File? selectedImage; // ✅ Store the selected image
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -62,8 +62,11 @@ class _HomePageState extends State<HomePage> {
           child: PostInputBox(
             textController: textController,
             hintText: "What's on your mind?",
+            onImageSelected: (File? image) {
+              selectedImage = image;
+            },
             onPressed: () async {
-              await postMessage(_messageController.text.trim());
+              await postMessage(_messageController.text.trim(), selectedImage);
             },
             onPressedText: "Post",
           ),
@@ -72,8 +75,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> postMessage(String message) async{
-    await databaseProvider.postMessage(message);
+  Future<void> postMessage(String message, File? imageFile) async {
+    await databaseProvider.postMessage(message, imageFile: imageFile);
   }
 
   @override

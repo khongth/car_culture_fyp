@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:car_culture_fyp/models/post.dart';
 import 'package:car_culture_fyp/services/database_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../auth/auth_cubit.dart';
+import '../models/user.dart';
 import 'comment_input.dart';
 
 class PostTile extends StatefulWidget {
@@ -31,12 +32,19 @@ class _PostTileState extends State<PostTile> {
   late final listeningProvider = Provider.of<DatabaseProvider>(context);
   late final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
   final _commentController = TextEditingController();
+  File? _selectedImage;
+  UserProfile? user;
 
   @override
-  void iniState() {
+  void initState() {
     super.initState();
 
+    loadUser();
     _loadComments();
+  }
+
+  Future<void> loadUser() async {
+    user = await databaseProvider.userProfile(widget.post.uid);
   }
 
   void _toggleLikePost() async {
@@ -50,23 +58,33 @@ class _PostTileState extends State<PostTile> {
   void _openNewCommentBox() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, // Allow the sheet to adjust height dynamically
       backgroundColor: Colors.transparent,
       enableDrag: false,
       builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
-          ),
-          child: CommentInputBox(
-            textController: _commentController,
-            post: widget.post,
-            onPressed: () async {
-              await _addComment();
-            },
-            onPressedText: "Post",
+        return SingleChildScrollView( // Make the content scrollable
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height, // Ensure minimum height is the screen height
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
+            ),
+            child: CommentInputBox(
+              textController: _commentController,
+              post: widget.post,
+              onPressed: () async {
+                await _addComment();
+              },
+              onPressedText: "Post",
+              onImageSelected: (image) {
+                setState(() {
+                  _selectedImage = image;
+                });
+              },
+            ),
           ),
         );
       },
@@ -74,10 +92,10 @@ class _PostTileState extends State<PostTile> {
   }
 
   Future<void> _addComment() async {
-    if (_commentController.text.trim().isEmpty) return;
+    if (_commentController.text.trim().isEmpty && _selectedImage == null) return;
 
     try {
-      await databaseProvider.addComment(widget.post.id, _commentController.text.trim());
+      await databaseProvider.addComment(widget.post.id, _commentController.text.trim(), imageFile: _selectedImage);
     } catch (e) {
       print(e);
     }
@@ -226,9 +244,13 @@ class _PostTileState extends State<PostTile> {
                 GestureDetector(
                   onTap: widget.onUserTap,
                   child: CircleAvatar(
-                    radius: 20,
-                    backgroundImage: NetworkImage('https://avatars.githubusercontent.com/u/91388754?v=4'),
-                  ),
+                    backgroundImage: user?.profileImageUrl.isNotEmpty == true
+                        ? NetworkImage(user!.profileImageUrl)
+                        : null,
+                    child: user?.profileImageUrl.isNotEmpty == true
+                        ? null
+                        : CircularProgressIndicator(),
+                  )
                 ),
                 const SizedBox(width: 10),
       
@@ -287,6 +309,34 @@ class _PostTileState extends State<PostTile> {
                       ),
 
                       const SizedBox(height: 10),
+
+                      if (widget.post.imageUrl != null && widget.post.imageUrl!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              widget.post.imageUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
+                                        : null,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
 
                       Row(
                         children: [

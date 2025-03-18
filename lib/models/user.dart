@@ -7,20 +7,24 @@ class UserProfile {
   final String email;
   final String username;
   final String bio;
+  final String profileImageUrl;
 
   UserProfile ({
     required this.uid,
     required this.email,
     required this.username,
     required this.bio,
+    required this.profileImageUrl,
   });
 
   factory UserProfile.fromDocument(DocumentSnapshot doc) {
     return UserProfile(
-        uid: doc['uid'],
-        email: doc['email'],
-        username: doc['username'],
-        bio: doc['bio']);
+      uid: doc['uid'],
+      email: doc['email'],
+      username: doc['username'],
+      bio: doc['bio'],
+      profileImageUrl: doc['profileImageUrl'],
+    );
   }
 
   Map<String, dynamic> toMap() {
@@ -29,6 +33,7 @@ class UserProfile {
       'email': email,
       'username': username,
       'bio': bio,
+      'profileImageUrl': profileImageUrl,
     };
   }
 }

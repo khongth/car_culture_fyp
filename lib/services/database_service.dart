@@ -1,19 +1,20 @@
 
+import 'dart:io';
 import 'package:car_culture_fyp/models/comment.dart';
+import 'package:car_culture_fyp/models/message.dart';
 import 'package:car_culture_fyp/models/user.dart';
-import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import '../models/marketplace.dart';
 import '../models/post.dart';
-
 
 //Handles data to and from firebase
 class DatabaseService {
 
+  final _store = FirebaseStorage.instance;
   final _db = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
-
 
   //User Profile
   //Save User Info
@@ -22,17 +23,30 @@ class DatabaseService {
     String uid = _auth.currentUser!.uid;
 
     String username = email.split('@')[0];
+    String defaultProfileImageUrl = await _getDefaultProfileImageUrl();
 
     UserProfile user = UserProfile(
       uid: uid,
       email: email,
       username: username,
       bio: '',
+      profileImageUrl: defaultProfileImageUrl,
     );
 
     final userMap = user.toMap();
 
     await _db.collection("Users").doc(uid).set(userMap);
+  }
+
+  Future<String> _getDefaultProfileImageUrl() async {
+    try {
+      final ref = _store.ref().child('profile_images/defaultprofilepicture.png');
+      String downloadUrl = await ref.getDownloadURL();
+      return downloadUrl;  // Returning the download URL of the default image
+    } catch (e) {
+      print("Error fetching default profile image: $e");
+      return '';  // Returning empty string in case of error
+    }
   }
 
   //Get user info
@@ -58,28 +72,77 @@ class DatabaseService {
     }
   }
 
-  Future<void> postMessageInFirebase(String message) async {
+  Future<void> updateUserProfileImageInFirebase(File imageFile) async {
+    String uid = _auth.currentUser!.uid;
+
+    try {
+      String? profileImageUrl = await _uploadProfileImageToStorage(imageFile, uid);
+
+      if (profileImageUrl != null) {
+        await _db.collection("Users").doc(uid).update({'profileImageUrl': profileImageUrl});
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<String?> _uploadProfileImageToStorage(File imageFile, String uid) async {
+    try {
+      String filePath = 'profile_images/$uid.jpg';
+      final ref = _store.ref().child(filePath);
+      await ref.putFile(imageFile);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading profile image: $e");
+      return null;
+    }
+  }
+
+  Future<void> postMessageInFirebase(String message, {File? imageFile}) async {
     try {
 
       String uid = _auth.currentUser!.uid;
       UserProfile? user = await getUserFromFirebase(uid);
 
+      DocumentReference postRef = _db.collection("Posts").doc();
+      String postId = postRef.id;
+      String? imageUrl;
+
+      if (imageFile != null) {
+        imageUrl = await _uploadImageToStorage(imageFile, postId);
+      }
+
       Post newPost = Post(
-          id: '',
-          uid: uid,
-          name: user!.email,
-          username: user!.username,
-          message: message,
-          timestamp: FieldValue.serverTimestamp(),
-          likeCount: 0,
-          likedBy: [],
+        id: '',
+        uid: uid,
+        name: user!.email,
+        username: user.username,
+        message: message,
+        timestamp: FieldValue.serverTimestamp(),
+        likeCount: 0,
+        likedBy: [],
+        imageUrl: imageUrl,
       );
 
       Map<String, dynamic> newPostMap = newPost.toMap();
 
-      await _db.collection("Posts").add(newPostMap);
+      await postRef.set(newPostMap);
     } catch (e) {
       print(e);
+    }
+  }
+
+  Future<String?> _uploadImageToStorage(File imageFile, String postId) async {
+    try {
+      String filePath = 'post_images/$postId.jpg';
+
+      final ref = _store.ref().child(filePath);
+      await ref.putFile(imageFile);
+
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading image: $e");
+      return null;
     }
   }
 
@@ -127,40 +190,79 @@ class DatabaseService {
 
   Future<List<Post>> getAllPostsFromFirebase() async {
     try {
-
       QuerySnapshot snapshot = await _db
           .collection("Posts")
           .orderBy('timestamp', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
 
+        return Post(
+          id: doc.id,
+          uid: data['uid'] ?? '',
+          name: data['name'] ?? '',
+          username: data['username'] ?? '',
+          message: data['message'] ?? '',
+          timestamp: (data['timestamp'] as Timestamp?) ?? Timestamp.now(),
+          likeCount: data['likes'] ?? 0,
+          likedBy: List<String>.from(data['likedBy'] ?? []),
+          imageUrl: data['imageUrl'],
+        );
+      }).toList();
     } catch (e) {
+      print("Error retrieving posts: $e");
       return [];
     }
   }
 
-  Future<void> addCommentInFirebase(String postId, message) async {
+  Future<void> addCommentInFirebase(String postId, message, {File? imageFile}) async {
     try {
       String uid = _auth.currentUser!.uid;
       UserProfile? user = await getUserFromFirebase(uid);
 
+      DocumentReference commentRef = _db.collection("Comments").doc();
+      String commentId = commentRef.id;
+      String? imageUrl;
+
+      if (imageFile != null) {
+        print('Uploading image for comment $commentId...');
+        imageUrl = await _uploadCommentImageToStorage(imageFile, commentId);
+        print('Image URL: $imageUrl');
+      }
+
       Comment newComment = Comment(
-        id: '', //auto generated
+        id: '', // auto-generated
         postId: postId,
         uid: uid,
         name: user!.email,
         username: user.username,
         message: message,
         timestamp: FieldValue.serverTimestamp(),
+        imageUrl: imageUrl, // add imageUrl to the comment data
       );
 
       Map<String, dynamic> newCommentMap = newComment.toMap();
-      
-      await _db.collection("Comments").add(newCommentMap);
 
-    } catch(e) {
-      print(e);
+      await commentRef.set(newCommentMap);
+
+      print('Comment added successfully');
+    } catch (e) {
+      print("Error adding comment: $e");
+    }
+  }
+
+  Future<String?> _uploadCommentImageToStorage(File imageFile, String commentId) async {
+    try {
+      String filePath = 'comment_images/$commentId.jpg';
+
+      final ref = _store.ref().child(filePath);
+      await ref.putFile(imageFile);
+
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading comment image: $e");
+      return null;
     }
   }
 
@@ -180,9 +282,22 @@ class DatabaseService {
           .orderBy('timestamp', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) => Comment.fromDocument(doc)).toList();
-    } catch(e) {
-      print(e);
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        return Comment(
+          id: doc.id,
+          postId: data['postId'] ?? '',
+          uid: data['uid'] ?? '',
+          name: data['name'] ?? '',
+          username: data['username'] ?? '',
+          message: data['message'] ?? '',
+          timestamp: data['timestamp'] ?? Timestamp.now(),
+          imageUrl: data['imageUrl'],
+        );
+      }).toList();
+    } catch (e) {
+      print("Error retrieving comments: $e");
       return [];
     }
   }
@@ -338,6 +453,112 @@ class DatabaseService {
       return snapshot.docs.map((doc) => UserProfile.fromDocument(doc)).toList();
 
     } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> sendMessage(String receiverId, message, {File? imageFile}) async {
+
+    final String currentUserID = _auth.currentUser!.uid;
+    final String currentUserEmail = _auth.currentUser!.email!;
+    final Timestamp timestamp = Timestamp.now();
+    String? imageUrl;
+
+    if (imageFile != null) {
+      imageUrl = await uploadImageToStorage(imageFile);
+    }
+
+    Message newMessage = Message(
+        senderId: currentUserID,
+        senderEmail: currentUserEmail,
+        receiverId: receiverId,
+        message: message,
+        timestamp: timestamp,
+        imageUrl: imageUrl,
+    );
+
+    List<String> ids = [currentUserID, receiverId];
+    ids.sort();
+    String chatRoomID = ids.join('_');
+
+    await _db
+        .collection("Chat")
+        .doc(chatRoomID)
+        .collection("Messages")
+        .add(newMessage.toMap());
+  }
+
+  Future<String?> uploadImageToStorage(File imageFile) async {
+    try {
+      String filePath = 'chat_images/${DateTime.now().toIso8601String()}.jpg';
+      final ref = _store.ref().child(filePath);
+      await ref.putFile(imageFile);
+
+      return await ref.getDownloadURL(); // Return the image URL
+    } catch (e) {
+      print("Error uploading image: $e");
+      return null;
+    }
+  }
+
+  Stream<QuerySnapshot> getMessages(String userID, otherUserID) {
+    List<String> ids = [userID, otherUserID];
+    ids.sort();
+    String chatRoomID = ids.join('_');
+
+    return _db
+        .collection("Chat")
+        .doc(chatRoomID)
+        .collection("Messages")
+        .orderBy("timestamp", descending: true)
+        .snapshots();
+  }
+
+  Future<void> postMarketplaceItem(String title, String description, double price, {File? imageFile}) async {
+    try {
+      String uid = _auth.currentUser!.uid;
+      DocumentReference postRef = _db.collection("Marketplace").doc();
+      String postId = postRef.id;
+      String? imageUrl;
+
+      if (imageFile != null) {
+        imageUrl = await _uploadMarketplaceImageToStorage(imageFile, postId);
+      }
+
+      MarketplacePost newPost = MarketplacePost(
+        id: postId,
+        uid: uid,
+        title: title,
+        description: description,
+        price: price,
+        timestamp: FieldValue.serverTimestamp(),
+        imageUrl: imageUrl,
+      );
+
+      await postRef.set(newPost.toMap());
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  Future<String?> _uploadMarketplaceImageToStorage(File imageFile, String postId) async {
+    try {
+      String filePath = 'marketplace_images/$postId.jpg';
+      final ref = _store.ref().child(filePath);
+      await ref.putFile(imageFile);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading image: $e");
+      return null;
+    }
+  }
+
+  Future<List<MarketplacePost>> getMarketplacePosts() async {
+    try {
+      QuerySnapshot snapshot = await _db.collection("Marketplace").orderBy('timestamp', descending: true).get();
+      return snapshot.docs.map((doc) => MarketplacePost.fromDocument(doc)).toList();
+    } catch (e) {
+      print("Error retrieving marketplace posts: $e");
       return [];
     }
   }

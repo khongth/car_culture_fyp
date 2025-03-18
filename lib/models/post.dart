@@ -9,6 +9,7 @@ class Post {
   final dynamic timestamp;
   final int likeCount;
   final List<String> likedBy;
+  final String? imageUrl;
 
   Post({
     required this.id,
@@ -19,6 +20,7 @@ class Post {
     required this.timestamp,
     required this.likeCount,
     required this.likedBy,
+    this.imageUrl,
   });
   
   //Convert Firestore > Post object
@@ -32,6 +34,7 @@ class Post {
       timestamp: doc['timestamp'],
       likeCount: doc['likes'],
       likedBy: List<String>.from(doc['likedBy'] ?? []),
+      imageUrl: doc['imageUrl'],
     );
   }
 
@@ -45,6 +48,7 @@ class Post {
       'timestamp': timestamp,
       'likes': likeCount,
       'likedBy': likedBy,
+      'imageUrl': imageUrl,
     };
   }
 }

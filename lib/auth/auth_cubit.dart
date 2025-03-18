@@ -38,10 +38,12 @@ class AuthCubit extends Cubit<AuthState> {
         email: email,
         password: password,
       );
+
       User? user = _firebaseAuth.currentUser;
 
       if (user != null) {
-        fetchUser(); // ✅ Fetch user info after login
+        await user.reload();
+        fetchUser();
         emit(AuthState(successMessage: "Login successful", user: _firebaseAuth.currentUser));
       }
     } on FirebaseAuthException catch (e) {

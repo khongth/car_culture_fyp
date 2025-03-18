@@ -1,42 +1,49 @@
+import 'dart:io';
+
 import 'package:car_culture_fyp/auth/auth_cubit.dart';
 import 'package:car_culture_fyp/components/bio_box.dart';
 import 'package:car_culture_fyp/components/follow_button.dart';
+import 'package:car_culture_fyp/components/message_button.dart';
 import 'package:car_culture_fyp/components/post_tile.dart';
 import 'package:car_culture_fyp/components/profile_stats.dart';
 import 'package:car_culture_fyp/models/user.dart';
+import 'package:car_culture_fyp/pages/chat_page.dart';
 import 'package:car_culture_fyp/services/database_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
 import '../components/bio_input.dart';
 import '../helper/navigatet_pages.dart';
 import 'follow_list_page.dart';
+import 'dart:ui';
 
 class ProfilePage extends StatefulWidget {
-
   final String uid;
   final VoidCallback onClose;
   final Function(String uid) onUserTap;
 
-  const ProfilePage({super.key, required this.uid, required this.onClose, required this.onUserTap});
+  const ProfilePage({
+    super.key,
+    required this.uid,
+    required this.onClose,
+    required this.onUserTap,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-
   late final listeningProvider = Provider.of<DatabaseProvider>(context);
   late final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
-  
+
   final _bioTextController = TextEditingController();
-  
   UserProfile? user;
   String? currentUserId;
-
   bool _isLoading = true;
   bool _isFollowing = false;
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -87,6 +94,69 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _showProfileImageUpdateModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          builder: (BuildContext context, ScrollController scrollController) {
+            return Column(
+              children: [
+                // Title
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text("Update Profile Picture", style: TextStyle(fontSize: 18)),
+                ),
+
+                // Image Picker button
+                ElevatedButton(
+                  onPressed: () async {
+                    await _selectProfileImage();
+                  },
+                  child: Text("Select Image"),
+                ),
+
+                // Save button
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_selectedImage != null) {
+                      await updateProfilePicture(_selectedImage!); // Pass non-null _selectedImage
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No image selected")));
+                    }
+                  },
+                  child: Text("Save"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _selectProfileImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
+
+  Future<void> updateProfilePicture(File imageFile) async {
+    await databaseProvider.updateProfilePicture(imageFile);
+    user = await databaseProvider.userProfile(widget.uid);
+
+    loadUser();
+  }
+
   Future<void> saveBio() async {
     setState(() {
       _isLoading = true;
@@ -111,25 +181,22 @@ class _ProfilePageState extends State<ProfilePage> {
           content: Text("Are you sure you want to unfollow?"),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel")
-            ),
+                onPressed: () => Navigator.pop(context),
+                child: Text("Cancel")),
             TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                
-                await databaseProvider.unfollowUser(widget.uid);
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await databaseProvider.unfollowUser(widget.uid);
 
-                setState(() {
-                  _isFollowing = !_isFollowing;
-                });
+                  setState(() {
+                    _isFollowing = !_isFollowing;
+                  });
 
-                await databaseProvider.loadUserFollowers(widget.uid);
-              },
-              child: Text("Unfollow")
-            ),
+                  await databaseProvider.loadUserFollowers(widget.uid);
+                },
+                child: Text("Unfollow"))
           ],
-        )
+        ),
       );
     } else {
       await databaseProvider.followUser(widget.uid);
@@ -143,8 +210,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-
-    //Get user posts
+    // Get user posts
     final allUserPosts = listeningProvider.filterUserPosts(widget.uid);
 
     final followerCount = listeningProvider.getFollowerCount(widget.uid);
@@ -165,124 +231,147 @@ class _ProfilePageState extends State<ProfilePage> {
           onPressed: widget.onClose,
         ),
       ),
-      body: ListView(
+      body: Stack(
         children: [
-          const SizedBox(height: 10),
-          Center(
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              padding: const EdgeInsets.all(4),
-              child: ClipOval(
-                child: Image(
-                  image: NetworkImage('https://avatars.githubusercontent.com/u/91388754?v=4'),
-                  height: 100,
-                  width: 100,
-                ),
-              )
-            ),
-          ),
-          Center(
-            child: Text(_isLoading ? ' ' : user!.email)
-          ),
-          const SizedBox(height: 10),
-
-          Row(
+          // Content body
+          ListView(
             children: [
-              Expanded(
-                  child: MyBioBox(text: _isLoading ? '...' : user!.bio),
-              ),
-              if (user != null && user!.uid == currentUserId)
-                Container(
-                  padding: EdgeInsets.all(25),
-                    child: GestureDetector(
-                      onTap: () => _showEditBioBox(context, _bioTextController),
-                      child: Icon(
-                        IconlyLight.edit_square,
-                        size: 18,
+              const SizedBox(height: 10),
+              Center(
+                child: GestureDetector(
+                  onTap: () => _showProfileImageUpdateModal(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: ClipOval(
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 100,
+                              width: 100,
+                              child: CircularProgressIndicator(),
+                            )
+                          : Image.network(
+                        user!.profileImageUrl,
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
                       ),
                     ),
-                )
-            ],
-          ),
-
-          ProfileStats(
-              postCount: allUserPosts.length,
-              followerCount: followerCount,
-              followingCount: followingCount,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      FollowListPage(uid: widget.uid, onUserTap: widget.onUserTap),
-                ),
-              ),
-          ),
-
-          if (user!=null && user!.uid != currentUserId)
-            Row(
-              children: [
-                Expanded(
-                  child: FollowButton(
-                      isFollowing: _isFollowing,
-                      onPressed: toggleFollow,
                   ),
                 ),
-                Expanded(
-                  child: FollowButton(
-                      isFollowing: false,
-                      onPressed: () {}
+              ),
+
+              Center(
+                  child: Text(_isLoading ? ' ' : user!.email)
+              ),
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: MyBioBox(text: _isLoading ? '...' : user!.bio),
+                  ),
+                  if (user != null && user!.uid == currentUserId)
+                    Container(
+                      padding: EdgeInsets.all(25),
+                      child: GestureDetector(
+                        onTap: () => _showEditBioBox(context, _bioTextController),
+                        child: Icon(
+                          IconlyLight.edit_square,
+                          size: 18,
+                        ),
+                      ),
+                    )
+                ],
+              ),
+
+              ProfileStats(
+                postCount: allUserPosts.length,
+                followerCount: followerCount,
+                followingCount: followingCount,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        FollowListPage(uid: widget.uid, onUserTap: widget.onUserTap),
                   ),
                 ),
-              ],
-            ),
+              ),
 
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Consistent padding
-            child: Center(
-              child: Text(
-                "Posts",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.inversePrimary,
+              if (user != null && user!.uid != currentUserId)
+                Row(
+                  children: [
+                    Expanded(
+                      child: FollowButton(
+                        isFollowing: _isFollowing,
+                        onPressed: toggleFollow,
+                      ),
+                    ),
+                    Expanded(
+                      child: MessageButton(
+                          onPressed: () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => ChatPage(
+                                      receiverEmail: user!.email,
+                                      receiverId: user!.uid,
+                                    )
+                                )
+                            );
+                          }
+                      ),
+                    ),
+                  ],
+                ),
+
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Consistent padding
+                child: Center(
+                  child: Text(
+                    "Posts",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
 
-          Divider(
-            thickness: 1,
-            color: Theme.of(context).colorScheme.secondary,
-          ),
-          
-          allUserPosts.isEmpty ?
+              Divider(
+                thickness: 1,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+
+              allUserPosts.isEmpty ?
               const Center(
                 child: Text(
                   "No posts yet...",
                 ),
               )
-              : ListView.builder(
-                  itemCount: allUserPosts.length,
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemBuilder: (context, index) {
-                    //Get each individual post
-                    final post = allUserPosts[index];
+                  : ListView.builder(
+                itemCount: allUserPosts.length,
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemBuilder: (context, index) {
+                  final post = allUserPosts[index];
 
-                    return PostTile(
-                      post: post,
-                      onUserTap: () {},
-                      onPostTap: () => goPostPage(context, post),
-                    );
-                  },
+                  return PostTile(
+                    post: post,
+                    onUserTap: () {},
+                    onPostTap: () => goPostPage(context, post),
+                  );
+                },
+              ),
+            ],
           ),
         ],
-      )
+      ),
     );
   }
 }
-
