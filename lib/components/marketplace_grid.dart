@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../helper/navigatet_pages.dart';
 import '../models/marketplace.dart';
 import 'marketplace_tile.dart';
 
@@ -19,7 +20,10 @@ class MarketplaceGrid extends StatelessWidget {
       ),
       itemCount: posts.length,
       itemBuilder: (context, index) {
-        return MarketplaceTile(post: posts[index]);
+        return MarketplaceTile(
+          post: posts[index],
+          onTap: () => goMarketplaceItemPage(context, posts[index]),
+        );
       },
     );
   }

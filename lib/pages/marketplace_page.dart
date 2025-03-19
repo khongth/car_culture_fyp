@@ -5,6 +5,7 @@ import '../models/marketplace.dart';
 import '../components/marketplace_grid.dart';
 import '../services/database_provider.dart';
 import '../components/marketplace_input.dart';
+import 'marketplace_search_page.dart';
 
 class MarketplacePage extends StatefulWidget {
   final VoidCallback? onDrawerOpen;
@@ -28,7 +29,7 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: 1);
   }
 
   @override
@@ -45,10 +46,11 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
 
   Future<void> loadMarketplacePosts() async {
     await databaseProvider.loadMarketplacePosts();
+    await databaseProvider.loadYourMarketplaceListing();
   }
 
   void _showMarketplaceInputBox(BuildContext context) {
-    File? selectedImage;
+    List<File> selectedImages = [];
 
     showModalBottomSheet(
       context: context,
@@ -66,15 +68,15 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
             titleController: _titleController,
             descriptionController: _descriptionController,
             priceController: _priceController,
-            onImageSelected: (File? image) {
-              selectedImage = image;
+            onImageSelected: (List<File> images) {
+              selectedImages = images;
             },
             onPost: () async {
               await postMarketplaceItem(
                 _titleController.text.trim(),
                 _descriptionController.text.trim(),
                 double.tryParse(_priceController.text) ?? 0.0,
-                selectedImage,
+                selectedImages,
               );
             },
           ),
@@ -83,8 +85,37 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
     );
   }
 
-  Future<void> postMarketplaceItem(String title, String description, double price, File? selectedImage) async {
-    await databaseProvider.postMarketplaceItem(title, description, price, imageFile: selectedImage);
+  Future<void> postMarketplaceItem(String title, String description, double price, List<File> selectedImages) async {
+    await databaseProvider.postMarketplaceItem(title, description, price, imageFiles: selectedImages);
+    await loadMarketplacePosts(); // Reload posts after adding new item
+  }
+
+  void _performSearch(String query) async {
+    if (query.trim().isEmpty) return;
+
+    await databaseProvider.searchMarketplace(query);
+
+    // Push new page with slide-in animation
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 300), // Animation speed
+        pageBuilder: (context, animation, secondaryAnimation) => MarketplaceSearchPage(searchQuery: query),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0); // Start position (right)
+          const end = Offset.zero; // End position (center)
+          const curve = Curves.easeInOut; // Smooth easing
+
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+
+          return SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -94,15 +125,16 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
         title: _isSearching
             ? TextField(
           controller: _searchController,
+          onSubmitted: _performSearch,
           autofocus: true,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: "Search Marketplace...",
             border: InputBorder.none,
           ),
         )
-            : Text("Marketplace"),
+            : const Text("Marketplace"),
         leading: IconButton(
-          icon: Icon(Icons.menu),
+          icon: const Icon(Icons.menu),
           onPressed: () {
             if (widget.onDrawerOpen != null) {
               widget.onDrawerOpen!();
@@ -120,16 +152,16 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
             },
           ),
           IconButton(
-            icon: Icon(Icons.add, size: 28),
+            icon: const Icon(Icons.add, size: 28),
             onPressed: () => _showMarketplaceInputBox(context),
           ),
         ],
         bottom: TabBar(
           dividerColor: Theme.of(context).colorScheme.primary,
           controller: _tabController,
-          labelColor: Colors.black, // Selected text color
-          unselectedLabelColor: Colors.grey[500], // Unselected text color
-          tabs: [
+          labelColor: Colors.black,
+          unselectedLabelColor: Colors.grey[500],
+          tabs: const [
             Tab(text: "Your Listings"),
             Tab(text: "For You"),
           ],
@@ -139,10 +171,8 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Your Listings (empty for now)
-          Center(child: Text("Your Listings is empty...")),
+          _buildMarketplaceGrid(listeningProvider.youMarketplacePosts),
 
-          // For You (Marketplace Grid)
           _buildMarketplaceGrid(listeningProvider.marketplacePosts),
         ],
       ),
@@ -151,7 +181,7 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
 
   Widget _buildMarketplaceGrid(List<MarketplacePost> posts) {
     return posts.isEmpty
-        ? Center(child: Text("No items for sale..."))
+        ? const Center(child: Text("No items for sale..."))
         : MarketplaceGrid(posts: posts);
   }
 }

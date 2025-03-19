@@ -3,6 +3,7 @@ import 'package:car_culture_fyp/pages/profile_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../components/bottom_navigation_bar.dart';
+import '../models/marketplace.dart';
 import '../models/post.dart';
 import '../pages/account_settings_page.dart';
 import '../pages/blocked_users_page.dart';
@@ -40,3 +41,9 @@ void goAccountSettingsPage(BuildContext context) {
   );
 }
 
+void goMarketplaceItemPage(BuildContext context, MarketplacePost post) {
+  final bottomNavState = context.findAncestorStateOfType<BottomNavWrapperState>();
+  if (bottomNavState != null) {
+    bottomNavState.openMarketplaceItemPage(post);
+  }
+}

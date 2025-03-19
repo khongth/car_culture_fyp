@@ -6,7 +6,7 @@ class MarketplacePost {
   final String title;
   final String description;
   final double price;
-  final String? imageUrl;
+  final List<String>? imageUrls;
   final dynamic timestamp;
 
   MarketplacePost({
@@ -16,7 +16,7 @@ class MarketplacePost {
     required this.description,
     required this.price,
     required this.timestamp,
-    this.imageUrl,
+    this.imageUrls,
   });
 
   // Convert Firestore > MarketplacePost object
@@ -28,7 +28,7 @@ class MarketplacePost {
       description: doc['description'],
       price: doc['price'].toDouble(),
       timestamp: doc['timestamp'],
-      imageUrl: doc['imageUrl'],
+      imageUrls: List<String>.from(doc['imageUrls'] ?? []),
     );
   }
 
@@ -40,7 +40,7 @@ class MarketplacePost {
       'description': description,
       'price': price,
       'timestamp': timestamp,
-      'imageUrl': imageUrl,
+      'imageUrls': imageUrls ?? [],
     };
   }
 }

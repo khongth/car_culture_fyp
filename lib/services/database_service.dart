@@ -6,6 +6,8 @@ import 'package:car_culture_fyp/models/user.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../models/event.dart';
 import '../models/marketplace.dart';
 import '../models/post.dart';
 
@@ -345,16 +347,16 @@ class DatabaseService {
         .doc(currentUserId)
         .collection("BlockedUsers")
         .get();
-    
+
     return snapshot.docs.map((doc) => doc.id).toList();
   }
-  
+
   Future<void> deleteUserInfoFromFirebase(String uid) async {
     WriteBatch batch = _db.batch();
-    
+
     DocumentReference userDoc = _db.collection("Users").doc(uid);
     batch.delete(userDoc);
-    
+
     QuerySnapshot userPosts =
         await _db.collection("Posts").where('uid', isEqualTo: uid).get();
 
@@ -440,10 +442,10 @@ class DatabaseService {
 
     return snapshot.docs.map((doc) => doc.id).toList();
   }
-  
+
   Future<List<UserProfile>> searchUsersInFirebase(String searchTerm) async {
     try {
-      
+
       QuerySnapshot snapshot = await _db
           .collection("Users")
           .where('username', isGreaterThanOrEqualTo: searchTerm)
@@ -453,6 +455,32 @@ class DatabaseService {
       return snapshot.docs.map((doc) => UserProfile.fromDocument(doc)).toList();
 
     } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<MarketplacePost>> searchMarketplaceItems(String searchTerm) async {
+    try {
+      String lowerSearchTerm = searchTerm.toLowerCase();
+
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance.collection("Marketplace").get();
+
+      List<MarketplacePost> results = [];
+
+      for (var doc in querySnapshot.docs) {
+        MarketplacePost post = MarketplacePost.fromDocument(doc);
+
+        String lowerTitle = post.title.toLowerCase();
+        String lowerDescription = post.description.toLowerCase();
+
+        if (lowerTitle.contains(lowerSearchTerm) || lowerDescription.contains(lowerSearchTerm)) {
+          results.add(post);
+        }
+      }
+
+      return results;
+    } catch (e) {
+      print("Error searching marketplace items: $e");
       return [];
     }
   }
@@ -514,15 +542,15 @@ class DatabaseService {
         .snapshots();
   }
 
-  Future<void> postMarketplaceItem(String title, String description, double price, {File? imageFile}) async {
+  Future<void> postMarketplaceItem(String title, String description, double price, {List<File>? imageFiles}) async {
     try {
       String uid = _auth.currentUser!.uid;
       DocumentReference postRef = _db.collection("Marketplace").doc();
       String postId = postRef.id;
-      String? imageUrl;
+      List<String>? imageUrls;
 
-      if (imageFile != null) {
-        imageUrl = await _uploadMarketplaceImageToStorage(imageFile, postId);
+      if (imageFiles != null && imageFiles.isNotEmpty) {
+        imageUrls = await _uploadMarketplaceImagesToStorage(imageFiles, postId);
       }
 
       MarketplacePost newPost = MarketplacePost(
@@ -532,7 +560,7 @@ class DatabaseService {
         description: description,
         price: price,
         timestamp: FieldValue.serverTimestamp(),
-        imageUrl: imageUrl,
+        imageUrls: imageUrls,
       );
 
       await postRef.set(newPost.toMap());
@@ -541,25 +569,88 @@ class DatabaseService {
     }
   }
 
-  Future<String?> _uploadMarketplaceImageToStorage(File imageFile, String postId) async {
+  Future<List<String>> _uploadMarketplaceImagesToStorage(List<File> imageFiles, String postId) async {
+    List<String> imageUrls = [];
     try {
-      String filePath = 'marketplace_images/$postId.jpg';
-      final ref = _store.ref().child(filePath);
-      await ref.putFile(imageFile);
-      return await ref.getDownloadURL();
+      for (int i = 0; i < imageFiles.length; i++) {
+        String filePath = 'marketplace_images/$postId$i.jpg';
+        final ref = _store.ref().child(filePath);
+        await ref.putFile(imageFiles[i]);
+        String imageUrl = await ref.getDownloadURL();
+        imageUrls.add(imageUrl);
+      }
+      return imageUrls;
     } catch (e) {
-      print("Error uploading image: $e");
-      return null;
+      print("Error uploading images: $e");
+      return [];
     }
   }
 
   Future<List<MarketplacePost>> getMarketplacePosts() async {
     try {
-      QuerySnapshot snapshot = await _db.collection("Marketplace").orderBy('timestamp', descending: true).get();
+      QuerySnapshot snapshot = await _db
+          .collection("Marketplace")
+          .orderBy('timestamp', descending: true)
+          .get();
+
       return snapshot.docs.map((doc) => MarketplacePost.fromDocument(doc)).toList();
     } catch (e) {
       print("Error retrieving marketplace posts: $e");
       return [];
     }
   }
+
+  Future<List<MarketplacePost>> getUserMarketplacePosts(String userId) async {
+    try {
+      QuerySnapshot querySnapshot = await _db
+          .collection("Marketplace")
+          .where("uid", isEqualTo: userId)
+          .get();
+
+      return querySnapshot.docs.map((doc) => MarketplacePost.fromDocument(doc)).toList();
+    } catch (e) {
+      print("Error fetching user marketplace listings: $e");
+      return [];
+    }
+  }
+
+  Future<List<CarEvent>> getCarEventsFromFirebase() async {
+    try {
+      final snapshot = await _db.collection('carEvents').orderBy('date', descending: false).get();
+      return snapshot.docs.map((doc) => CarEvent.fromDocument(doc)).toList();
+    } catch (e) {
+      print('Error fetching events: $e');
+      return [];
+    }
+  }
+
+  Future<void> addCarEventInFirebase({
+    required String name,
+    required String location,
+    required String description,
+    required DateTime date,
+    required LatLng position,
+  }) async {
+    try {
+      // Generate a new document reference for the event
+      DocumentReference eventRef = _db.collection("carEvents").doc();
+      String eventId = eventRef.id;
+
+      CarEvent newEvent = CarEvent(
+        id: eventId, // Assign the generated ID
+        name: name,
+        location: location,
+        description: description,
+        date: date,
+        position: position,
+      );
+
+      Map<String, dynamic> eventMap = newEvent.toMap();
+
+      await eventRef.set(eventMap);
+    } catch (e) {
+      print("Error adding event: $e");
+    }
+  }
 }
+

@@ -1,17 +1,13 @@
-//Process data to be used
-
 import 'dart:io';
-
 import 'package:car_culture_fyp/models/post.dart';
 import 'package:car_culture_fyp/models/user.dart';
 import 'package:car_culture_fyp/services/database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path/path.dart';
-import '../auth/auth_cubit.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/comment.dart';
+import '../models/event.dart';
 import '../models/marketplace.dart';
 
 class DatabaseProvider extends ChangeNotifier {
@@ -346,16 +342,68 @@ class DatabaseProvider extends ChangeNotifier {
     }
   }
 
-  List<MarketplacePost> _marketplacePosts = [];
-  List<MarketplacePost> get marketplacePosts => _marketplacePosts;
+  Future<void> searchMarketplace(String searchTerm) async {
+    try {
+      final marketplaceResults = await _db.searchMarketplaceItems(searchTerm);
 
-  Future<void> postMarketplaceItem(String title, String description, double price, {File? imageFile}) async {
-    await _db.postMarketplaceItem(title, description, price, imageFile: imageFile);
+      _marketplaceSearchResult = marketplaceResults;
+
+      notifyListeners();
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  List<MarketplacePost> _marketplacePosts = [];
+  List<MarketplacePost> _yourMarketplacePosts = [];
+  List<MarketplacePost> _marketplaceSearchResult = [];
+  List<MarketplacePost> get marketplacePosts => _marketplacePosts;
+  List<MarketplacePost> get youMarketplacePosts => _yourMarketplacePosts;
+  List<MarketplacePost> get marketplaceSearchResult => _marketplaceSearchResult;
+
+  Future<void> postMarketplaceItem(String title, String description, double price, {List<File>? imageFiles}) async {
+    await _db.postMarketplaceItem(title, description, price, imageFiles: imageFiles);
     await loadMarketplacePosts();
   }
 
   Future<void> loadMarketplacePosts() async {
     _marketplacePosts = await _db.getMarketplacePosts();
     notifyListeners();
+  }
+
+  Future<void> loadYourMarketplaceListing() async {
+    String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    final userMarketplacePosts = await _db.getUserMarketplacePosts(currentUserId);
+
+    _yourMarketplacePosts = userMarketplacePosts;
+
+    notifyListeners();
+  }
+
+
+
+  List<CarEvent> _carEvents = [];
+  bool _isLoadingEvents = false;
+
+  List<CarEvent> get carEvents => _carEvents;
+  bool get isLoadingEvents => _isLoadingEvents;
+
+  Future<void> loadCarEvents() async {
+    _isLoadingEvents = true;
+    notifyListeners();
+
+    final events = await _db.getCarEventsFromFirebase();
+
+    _carEvents = events;
+    _isLoadingEvents = false;
+
+    notifyListeners();
+  }
+
+  Future<void> addCarEvent(String name, String location, String description, DateTime date, LatLng position) async {
+    await _db.addCarEventInFirebase(name: name, location: location, description: description, date: date, position: position);
+    await loadCarEvents();
   }
 }

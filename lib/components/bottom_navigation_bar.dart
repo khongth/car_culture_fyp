@@ -8,9 +8,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
+import '../models/marketplace.dart';
 import '../models/post.dart';
 import '../models/user.dart';
 import '../pages/home_page.dart';
+import '../pages/marketplace_item_page.dart';
 import '../pages/post_page.dart';
 import '../pages/search_page.dart';
 import '../pages/profile_page.dart';
@@ -30,11 +32,16 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
   int _currentIndex = 0;
   Post? _selectedPost;
   String? _selectedUserId;
+  MarketplacePost? _selectedMarketplaceItem;
   bool _isDrawerOpen = false;
+
+  Post? _previousPost;
+  MarketplacePost? _previousMarketplaceItem;
 
   late final AnimationController _overlayController;
   late final AnimationController _profilePageController;
   late final AnimationController _postPageController;
+  late final AnimationController _marketplaceItemPageController;
 
   // Lazy initialize pages
   late final List<Widget> _pages = [
@@ -42,7 +49,7 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
     SearchPage(onDrawerOpen: openDrawer, onUserTap: openProfilePage),
     MapPage(onDrawerOpen: openDrawer),
     MarketplacePage(onDrawerOpen: openDrawer),
-    InboxPage(onDrawerOpen: openDrawer),
+    MarketplacePage(onDrawerOpen: openDrawer),
   ];
 
   @override
@@ -60,6 +67,11 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
     );
 
     _postPageController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _marketplaceItemPageController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
@@ -88,19 +100,50 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
 
   void openProfilePage(String uid) {
     setState(() {
+      _previousPost = _selectedPost;
+      _previousMarketplaceItem = _selectedMarketplaceItem;
+
       _selectedUserId = uid;
       _selectedPost = null;
+      _selectedMarketplaceItem = null;
     });
     _profilePageController.forward();
   }
 
+  void openMarketplaceItemPage(MarketplacePost post) {
+    setState(() {
+      _selectedMarketplaceItem = post;
+      _selectedUserId = null;
+      _selectedPost = null;
+    });
+    _marketplaceItemPageController.forward();
+  }
+
   void closeOverlayPage() {
+    if (_selectedUserId != null) {
+
+      if (_previousPost != null) {
+        openPostPage(_previousPost!);
+        _previousPost = null;
+        return;
+      }
+
+      if (_previousMarketplaceItem != null) {
+        openMarketplaceItemPage(_previousMarketplaceItem!);
+        _previousMarketplaceItem = null;
+        return;
+      }
+    }
+
+    // Close all overlays if there's no previous page to restore
     _profilePageController.reverse();
-    _postPageController.reverse().then((_) {
+    _postPageController.reverse();
+    _marketplaceItemPageController.reverse().then((_) {
       if (mounted) {
         setState(() {
           _selectedPost = null;
           _selectedUserId = null;
+          _selectedMarketplaceItem = null;
         });
       }
     });
@@ -111,6 +154,7 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
     _overlayController.dispose();
     _profilePageController.dispose();
     _postPageController.dispose();
+    _marketplaceItemPageController.dispose();
     super.dispose();
   }
 
@@ -200,12 +244,24 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
                       onClose: closeOverlayPage,
                     ),
                   ),
+
+                if (_selectedMarketplaceItem != null)
+                  SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(1.0, 0.0),
+                      end: Offset.zero,
+                    ).animate(_marketplaceItemPageController),
+                    child: MarketplaceItemPage(
+                      post: _selectedMarketplaceItem!,
+                      onClose: closeOverlayPage,
+                    ),
+                  ),
               ],
             ),
             bottomNavigationBar: BottomNavigationBar(
               currentIndex: _currentIndex,
               onTap: (index) {
-                if (_selectedPost != null || _selectedUserId != null) {
+                if (_selectedPost != null || _selectedUserId != null || _selectedMarketplaceItem != null) {
                   closeOverlayPage();
                 }
                 if (_isDrawerOpen) {
