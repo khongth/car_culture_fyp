@@ -156,20 +156,6 @@ class _PostPageState extends State<PostPage> {
                       ],
                     ),
                   ),
-
-                  const Spacer(),
-                  // Follow Button
-                  ElevatedButton(
-                    onPressed: () {
-                      // TODO: Implement follow action
-                    },
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text("Follow"),
-                  ),
                 ],
               ),
             ),

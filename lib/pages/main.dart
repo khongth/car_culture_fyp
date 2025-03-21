@@ -45,6 +45,8 @@ class CustomShortTimeAgoMessages extends timeago.EnMessages {
   @override
   String hours(int hours) => '${hours}h';
   @override
+  @override String aboutAnHour(int minutes) => '1h';
+
   String aDay(int hours) => '1d';
   @override
   String days(int days) => '${days}d';

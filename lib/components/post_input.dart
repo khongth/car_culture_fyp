@@ -1,6 +1,11 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../models/user.dart';
+import '../services/database_provider.dart';
 
 class PostInputBox extends StatefulWidget {
   final TextEditingController textController;
@@ -24,11 +29,15 @@ class PostInputBox extends StatefulWidget {
 
 class _PostInputBoxState extends State<PostInputBox> {
   bool _isTextNotEmpty = false;
-  File? _selectedImage; // ✅ Stores the selected image file
+  File? _selectedImage;
+  late final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
+  UserProfile? _user;
+  UserProfile? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _loadUser();
     widget.textController.addListener(_checkText);
   }
 
@@ -41,6 +50,14 @@ class _PostInputBoxState extends State<PostInputBox> {
   void _checkText() {
     setState(() {
       _isTextNotEmpty = widget.textController.text.trim().isNotEmpty || _selectedImage != null;
+    });
+  }
+
+  Future<void> _loadUser() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userProfile = await databaseProvider.userProfile(currentUser!.uid);
+    setState(() {
+      _currentUser = userProfile;
     });
   }
 
@@ -64,6 +81,17 @@ class _PostInputBoxState extends State<PostInputBox> {
     });
 
     widget.onImageSelected(null);
+  }
+
+  Widget _buildAvatar(String? url, double radius) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundImage: NetworkImage(url ?? ''),
+      backgroundColor: Colors.grey[300],
+      onBackgroundImageError: (exception, stackTrace) {
+        debugPrint('Error loading avatar: $exception');
+      },
+    );
   }
 
   @override
@@ -146,12 +174,7 @@ class _PostInputBoxState extends State<PostInputBox> {
             children: [
               Container(
                 margin: EdgeInsets.only(top: 8, left: 10),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundImage: NetworkImage(
-                    'https://avatars.githubusercontent.com/u/91388754?v=4',
-                  ),
-                ),
+                child: _buildAvatar(_currentUser?.profileImageUrl, 20), // Use the profileImageUrl here
               ),
               const SizedBox(width: 12),
 
@@ -179,7 +202,6 @@ class _PostInputBoxState extends State<PostInputBox> {
 
           const SizedBox(height: 12),
 
-          // ✅ Image Preview Section
           if (_selectedImage != null)
             Stack(
               children: [
@@ -208,16 +230,8 @@ class _PostInputBoxState extends State<PostInputBox> {
           Row(
             children: [
               IconButton(
-                onPressed: _pickImage, // ✅ Open image picker
+                onPressed: _pickImage,
                 icon: Icon(Icons.image, size: 28, color: Theme.of(context).colorScheme.primary),
-              ),
-              IconButton(
-                onPressed: () {}, // GIF functionality (Future feature)
-                icon: Icon(Icons.gif, size: 28, color: Theme.of(context).colorScheme.primary),
-              ),
-              IconButton(
-                onPressed: () {}, // Poll functionality (Future feature)
-                icon: Icon(Icons.poll, size: 28, color: Theme.of(context).colorScheme.primary),
               ),
               Spacer(),
             ],
@@ -229,3 +243,4 @@ class _PostInputBoxState extends State<PostInputBox> {
     );
   }
 }
+

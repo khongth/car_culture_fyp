@@ -17,6 +17,20 @@ class Message {
     this.imageUrl,
   });
 
+  factory Message.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    return Message(
+      senderId: data['senderId'] ?? '',
+      senderEmail: data['senderEmail'] ?? '',
+      receiverId: data['receiverId'] ?? '',
+      message: data['message'] ?? '',
+      timestamp: data['timestamp'] ?? Timestamp.now(),
+      imageUrl: data['imageUrl'], // Fix: include imageUrl
+    );
+  }
+
+
   Map<String, dynamic> toMap() {
     return {
       'senderId': senderId,

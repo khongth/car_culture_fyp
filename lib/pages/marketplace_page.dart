@@ -49,6 +49,11 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
     await databaseProvider.loadYourMarketplaceListing();
   }
 
+  Future<void> _onRefresh() async {
+    // Trigger the refresh of marketplace posts
+    await loadMarketplacePosts();
+  }
+
   void _showMarketplaceInputBox(BuildContext context) {
     List<File> selectedImages = [];
 
@@ -172,7 +177,6 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
         controller: _tabController,
         children: [
           _buildMarketplaceGrid(listeningProvider.youMarketplacePosts),
-
           _buildMarketplaceGrid(listeningProvider.marketplacePosts),
         ],
       ),
@@ -180,8 +184,11 @@ class _MarketplacePageState extends State<MarketplacePage> with SingleTickerProv
   }
 
   Widget _buildMarketplaceGrid(List<MarketplacePost> posts) {
-    return posts.isEmpty
-        ? const Center(child: Text("No items for sale..."))
-        : MarketplaceGrid(posts: posts);
+    return RefreshIndicator(
+      onRefresh: _onRefresh, // Pull-to-refresh function
+      child: posts.isEmpty
+          ? const Center(child: Text("No items for sale..."))
+          : MarketplaceGrid(posts: posts),
+    );
   }
 }

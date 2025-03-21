@@ -108,7 +108,6 @@ class _CommentInputBoxState extends State<CommentInputBox> {
         widget.onImageSelected(_imageFile);
       }
     } catch (e) {
-      // Handle image picking errors
       debugPrint('Error picking image: $e');
     }
   }
@@ -143,10 +142,6 @@ class _CommentInputBoxState extends State<CommentInputBox> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Adjust padding based on available width
-        final horizontalPadding = constraints.maxWidth < 400 ? 12.0 : 16.0;
-        final verticalPadding = constraints.maxWidth < 400 ? 12.0 : 16.0;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -239,8 +234,7 @@ class _CommentInputBoxState extends State<CommentInputBox> {
   }
 
   Widget _buildOriginalPost(ColorScheme colorScheme) {
-    // Calculate dynamic line height based on message length
-    final lineHeight = (widget.post.message.length / 1).clamp(80.0, 200.0) + (widget.post.imageUrl != null ? 300.0 : 0.0);
+    final lineHeight = (widget.post.message.length / 1).clamp(80.0, 260.0) + (widget.post.imageUrl != null ? 300.0 : 0.0);
     final avatarRadius = MediaQuery.of(context).size.width < 400 ? 18.0 : 20.0;
 
     return Row(

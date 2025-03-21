@@ -360,7 +360,6 @@ class DatabaseService {
     }
   }
 
-
   Future<void> reportUserInFirebase(String postId, userId) async {
     final currentUserId = _auth.currentUser!.uid;
 
@@ -599,7 +598,6 @@ class DatabaseService {
   }
 
   Future<void> sendMessage(String receiverId, message, {File? imageFile}) async {
-
     final String currentUserID = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
@@ -610,17 +608,22 @@ class DatabaseService {
     }
 
     Message newMessage = Message(
-        senderId: currentUserID,
-        senderEmail: currentUserEmail,
-        receiverId: receiverId,
-        message: message,
-        timestamp: timestamp,
-        imageUrl: imageUrl,
+      senderId: currentUserID,
+      senderEmail: currentUserEmail,
+      receiverId: receiverId,
+      message: message,
+      timestamp: timestamp,
+      imageUrl: imageUrl,
     );
 
     List<String> ids = [currentUserID, receiverId];
     ids.sort();
     String chatRoomID = ids.join('_');
+
+    await _db.collection("Chat").doc(chatRoomID).set({
+      'participants': ids,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     await _db
         .collection("Chat")
@@ -628,6 +631,7 @@ class DatabaseService {
         .collection("Messages")
         .add(newMessage.toMap());
   }
+
 
   Future<String?> uploadImageToStorage(File imageFile) async {
     try {
@@ -763,6 +767,46 @@ class DatabaseService {
       await eventRef.set(eventMap);
     } catch (e) {
       print("Error adding event: $e");
+    }
+  }
+
+  Future<List<String>> getUserChatRoomIds() async {
+    final currentUserId = _auth.currentUser!.uid;
+
+    try {
+      QuerySnapshot chatSnapshot = await _db.collection("Chat").get();
+
+      List<String> chatRoomIds = chatSnapshot.docs
+          .where((doc) => doc.id.split('_').contains(currentUserId))
+          .map((doc) => doc.id)
+          .toList();
+
+      return chatRoomIds;
+    } catch (e) {
+      print("Error fetching chat rooms: $e");
+      return [];
+    }
+  }
+
+
+  Future<Message?> getLatestMessageFromChatRoom(String chatRoomId) async {
+    try {
+      QuerySnapshot snapshot = await _db
+          .collection("Chat")
+          .doc(chatRoomId)
+          .collection("Messages")
+          .orderBy("timestamp", descending: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return Message.fromDocument(snapshot.docs.first);
+      }
+
+      return null;
+    } catch (e) {
+      print("Error fetching latest message: $e");
+      return null;
     }
   }
 }

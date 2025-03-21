@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/comment.dart';
 import '../models/event.dart';
 import '../models/marketplace.dart';
+import '../models/message.dart';
 
 class DatabaseProvider extends ChangeNotifier {
   final _db = DatabaseService();
@@ -366,6 +367,7 @@ class DatabaseProvider extends ChangeNotifier {
 
   List<UserProfile> _searchResults = [];
 
+
   List<UserProfile> get searchResult => _searchResults;
 
   Future<void> searchUsers(String searchTerm) async {
@@ -378,6 +380,11 @@ class DatabaseProvider extends ChangeNotifier {
     } catch (e) {
       print(e);
     }
+  }
+
+  Future<void> clearSearchResults() async {
+    _searchResults = [];
+    notifyListeners();
   }
 
   Future<void> searchMarketplace(String searchTerm) async {
@@ -419,7 +426,6 @@ class DatabaseProvider extends ChangeNotifier {
 
     notifyListeners();
   }
-
   List<CarEvent> _carEvents = [];
   bool _isLoadingEvents = false;
 
@@ -441,5 +447,42 @@ class DatabaseProvider extends ChangeNotifier {
   Future<void> addCarEvent(String name, String location, String description, DateTime date, LatLng position) async {
     await _db.addCarEventInFirebase(name: name, location: location, description: description, date: date, position: position);
     await loadCarEvents();
+  }
+
+  Map<String, Message> _inboxLatestMessages = {};
+  Map<String, UserProfile> _inboxUserProfiles = {};
+
+  Map<String, Message> get inboxLatestMessages => _inboxLatestMessages;
+  Map<String, UserProfile> get inboxUserProfiles => _inboxUserProfiles;
+
+  Future<void> loadInbox() async {
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
+    final chatRoomIds = await _db.getUserChatRoomIds();
+
+    Map<String, Message> latestMessagesMap = {};
+    Map<String, UserProfile> userProfilesMap = {};
+
+    for (String roomId in chatRoomIds) {
+      final message = await _db.getLatestMessageFromChatRoom(roomId);
+      if (message != null) {
+        latestMessagesMap[roomId] = message;
+
+        String otherUserId = message.senderId == currentUserId
+            ? message.receiverId
+            : message.senderId;
+
+        final otherUserProfile = await _db.getUserFromFirebase(otherUserId);
+
+        if (otherUserProfile != null) {
+          userProfilesMap[roomId] = otherUserProfile;
+        }
+      }
+    }
+
+    _inboxLatestMessages = latestMessagesMap;
+    _inboxUserProfiles = userProfilesMap;
+
+    notifyListeners();
   }
 }

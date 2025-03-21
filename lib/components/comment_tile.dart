@@ -175,7 +175,7 @@ class _CommentTileState extends State<CommentTile> {
 
   String _formatTimeAgo(Timestamp timestamp) {
     final DateTime dateTime = timestamp.toDate();
-    return timeago.format(dateTime, locale: 'en_short');
+    return timeago.format(dateTime, locale: 'short');
   }
 
   @override

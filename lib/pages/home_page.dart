@@ -3,13 +3,13 @@ import 'dart:ui';
 import 'package:car_culture_fyp/components/post_input.dart';
 import 'package:car_culture_fyp/components/post_tile.dart';
 import 'package:car_culture_fyp/helper/navigatet_pages.dart';
+import 'package:car_culture_fyp/pages/search_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/post.dart';
 import '../services/database_provider.dart';
 
 class HomePage extends StatefulWidget {
-  // Add callback for drawer opening
   final VoidCallback? onDrawerOpen;
 
   const HomePage({super.key, this.onDrawerOpen});
@@ -32,7 +32,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void initState() {
-
     super.initState();
     loadAllPosts();
   }
@@ -40,6 +39,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> loadAllPosts() async {
     await databaseProvider.loadAllPosts();
   }
+
   Future<void> loadFollowingPosts() async {
     await databaseProvider.loadFollowingPosts();
   }
@@ -79,25 +79,29 @@ class _HomePageState extends State<HomePage> {
     await databaseProvider.postMessage(message, imageFile: imageFile);
   }
 
+  Future<void> _onRefresh() async {
+    // Trigger the refresh of posts
+    await loadAllPosts();
+    await loadFollowingPosts();
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text("Car Culture"),
           centerTitle: true,
           leading: IconButton(
             icon: Icon(Icons.menu),
             onPressed: () {
-
               if (widget.onDrawerOpen != null) {
                 widget.onDrawerOpen!();
               }
             },
           ),
-          bottom: TabBar(
-              dividerColor: Theme.of(context).colorScheme.primary,
+          title: TabBar(
+              dividerColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0),
               unselectedLabelColor: Theme.of(context).colorScheme.primary,
               labelColor: Theme.of(context).colorScheme.inversePrimary,
               tabs: [
@@ -105,6 +109,20 @@ class _HomePageState extends State<HomePage> {
                 Tab(text: "Following"),
               ]
           ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.search),
+              onPressed: () {
+                Navigator.of(context).push(PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => SearchPage(
+                    onUserTap: (uid) => goUserPage(context, uid),
+                  ),
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ));
+              },
+            ),
+          ],
         ),
         backgroundColor: Theme.of(context).colorScheme.surface,
 
@@ -120,22 +138,23 @@ class _HomePageState extends State<HomePage> {
         ),
 
         body: TabBarView(
-          children: [
-            _buildPostList(listeningProvider.allPosts),
-            _buildPostList(listeningProvider.followingPosts),
-          ]
-        )
+            children: [
+              _buildPostList(listeningProvider.allPosts),
+              _buildPostList(listeningProvider.followingPosts),
+            ]
+        ),
       ),
     );
   }
 
   Widget _buildPostList(List<Post> posts) {
-    return posts.isEmpty
-        ? Center(child: Text("Nothing here..."),
-    )
-        : ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _onRefresh, // Pull-to-refresh function
+      child: posts.isEmpty
+          ? Center(child: Text("Nothing here..."))
+          : ListView.builder(
         itemCount: posts.length,
-        itemBuilder: (context,index) {
+        itemBuilder: (context, index) {
           final post = posts[index];
 
           return PostTile(
@@ -143,7 +162,8 @@ class _HomePageState extends State<HomePage> {
             onUserTap: () => goUserPage(context, post.uid),
             onPostTap: () => goPostPage(context, post),
           );
-        }
+        },
+      ),
     );
   }
 }

@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../components/marketplace_recent_listings.dart';
 import '../components/user_list_tile.dart';
 import '../helper/navigatet_pages.dart';
 import '../models/marketplace.dart';
@@ -18,11 +20,13 @@ class MarketplaceItemPage extends StatefulWidget {
 
 class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
   UserProfile? _sellerProfile;
+  List<MarketplacePost> _allListings = [];
 
   @override
   void initState() {
     super.initState();
     _loadSellerInfo();
+    _loadRecentListings();
   }
 
   Future<void> _loadSellerInfo() async {
@@ -30,6 +34,18 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
     final seller = await databaseProvider.userProfile(widget.post.uid);
     setState(() {
       _sellerProfile = seller;
+    });
+  }
+
+  Future<void> _loadRecentListings() async {
+    final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
+    await databaseProvider.loadMarketplacePosts(); // Ensure you're calling this method to fetch data
+
+    setState(() {
+      // Exclude the current post from the recent listings
+      _allListings = databaseProvider.marketplacePosts
+          .where((post) => post.id != widget.post.id) // Exclude the current post by ID
+          .toList(); // Update the state with the filtered data
     });
   }
 
@@ -41,10 +57,10 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onClose, // Close post on back press
+          onPressed: widget.onClose,
         ),
       ),
-      body: SingleChildScrollView(
+      body: Container(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -52,10 +68,9 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
             const SizedBox(height: 10),
             _buildItemDetails(),
             const SizedBox(height: 10),
-            Divider(thickness: 1, color: Theme.of(context).colorScheme.primary),
             _buildSellerInfo(),
-            Divider(thickness: 1, color: Theme.of(context).colorScheme.primary),
-            _buildSimilarListings(),
+            const Spacer(),
+            _buildRecentListings(),
           ],
         ),
       ),
@@ -112,9 +127,6 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
           ),
           const SizedBox(height: 10),
           Text(widget.post.description),
-          const SizedBox(height: 10),
-          const Text("Category: Miscellaneous"),
-          const Text("Location: Kuala Lumpur"),
         ],
       ),
     );
@@ -129,46 +141,23 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
     }
 
     return UserListTile(
-      uid: widget.post.uid,
-      user: _sellerProfile!,
-      onUserTap: (uid) => goUserPage(context, uid), // Calls goUserPage function
+        uid: widget.post.uid,
+        user: _sellerProfile!,
+        onUserTap: (uid) => goUserPage(context, uid)
     );
   }
 
-  Widget _buildSimilarListings() {
+  Widget _buildRecentListings() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text("Similar Listings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          child: Text("Recent Listings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 150,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3, // TODO: Replace with actual similar listings
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: 100,
-                      width: 120,
-                      child: Image.network("https://via.placeholder.com/120", fit: BoxFit.cover),
-                    ),
-                    const Text("Similar Item", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                    const Text("RM 80", style: TextStyle(fontSize: 14, color: Colors.green)),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+        MarketplaceRecentListings(posts: _allListings),
       ],
     );
   }
+
 }
