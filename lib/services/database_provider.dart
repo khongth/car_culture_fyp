@@ -34,14 +34,16 @@ class DatabaseProvider extends ChangeNotifier {
 
   Future<void> loadAllPosts() async {
     final allPosts = await _db.getAllPostsFromFirebase();
+    final blockedByUserIds = await _db.getBlockedByFromFirebase();
 
-    final blockedUserIds = await _db.getBlockedUidsFromFirebase();
-
-    _allPosts = allPosts.where((post) => !blockedUserIds.contains(post.uid)).toList();
+    // Filter posts:
+    // 1. Current user should not see posts from users who blocked them (BlockedBy list)
+    // 2. Users the current user has blocked are still visible
+    _allPosts = allPosts.where((post) => !blockedByUserIds.contains(post.uid)).toList();
 
     loadFollowingPosts();
-
     initializeLikeMap();
+
     for (var post in allPosts) {
       await loadComments(post.id);
     }
@@ -57,6 +59,22 @@ class DatabaseProvider extends ChangeNotifier {
     _followingPosts = _allPosts.where((post) => followingUserIds.contains(post.uid)).toList();
 
     notifyListeners();
+  }
+
+  Future<Post?> getPostById(String postId) async {
+    try {
+      // Fetch the post from the database
+      Post? post = await _db.getPostById(postId);
+
+      if (post != null) {
+        notifyListeners(); // If needed
+      }
+
+      return post;
+    } catch (e) {
+      print("Error fetching post by ID: $e");
+      return null;
+    }
   }
 
   //Filter and return user post in User Profile
@@ -141,9 +159,19 @@ class DatabaseProvider extends ChangeNotifier {
     await loadComments(postId);
   }
 
+  List<Comment> _userComments = [];
+  List<Comment> get userComments => _userComments;
+
+  Future<void> loadUserComments() async {
+    _userComments = await _db.getUserCommentsFromFirebase();
+    notifyListeners();
+  }
+
   List<UserProfile> _blockedUsers = [];
+  List<UserProfile> _blockedBy = [];
 
   List<UserProfile> get blockedUsers => _blockedUsers;
+  List<UserProfile> get blockedBy => _blockedBy;
 
   Future<void> loadBlockedUsers() async {
     final blockedUserIds = await _db.getBlockedUidsFromFirebase();
@@ -151,6 +179,16 @@ class DatabaseProvider extends ChangeNotifier {
     final blockedUsersData = await Future.wait(blockedUserIds.map((id) => _db.getUserFromFirebase(id)));
 
     _blockedUsers = blockedUsersData.whereType<UserProfile>().toList();
+
+    notifyListeners();
+  }
+
+  Future<void> loadBlockedBy() async {
+    final blockedBy = await _db.getBlockedByFromFirebase();
+
+    final blockedByData = await Future.wait(blockedBy.map((id) => _db.getUserFromFirebase(id)));
+
+    _blockedBy = blockedByData.whereType<UserProfile>().toList();
 
     notifyListeners();
   }
@@ -381,8 +419,6 @@ class DatabaseProvider extends ChangeNotifier {
 
     notifyListeners();
   }
-
-
 
   List<CarEvent> _carEvents = [];
   bool _isLoadingEvents = false;

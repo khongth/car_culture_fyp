@@ -304,6 +304,63 @@ class DatabaseService {
     }
   }
 
+  Future<List<Comment>> getUserCommentsFromFirebase() async {
+    try {
+      String uid = _auth.currentUser!.uid;
+
+      QuerySnapshot snapshot = await _db
+          .collection("Comments")
+          .where("uid", isEqualTo: uid)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        return Comment(
+          id: doc.id,
+          postId: data['postId'] ?? '',
+          uid: data['uid'] ?? '',
+          name: data['name'] ?? '',
+          username: data['username'] ?? '',
+          message: data['message'] ?? '',
+          timestamp: data['timestamp'] ?? Timestamp.now(),
+          imageUrl: data['imageUrl'],
+        );
+      }).toList();
+    } catch (e) {
+      print("Error retrieving user comments: $e");
+      return [];
+    }
+  }
+
+  Future<Post?> getPostById(String postId) async {
+    try {
+      final doc = await _db.collection('Posts').doc(postId).get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        return Post(
+          id: doc.id,
+          uid: data['uid'] ?? '',
+          username: data['username'] ?? '',
+          name: data['name'] ?? '',
+          message: data['message'] ?? '',
+          timestamp: (data['timestamp'] as Timestamp?) ?? Timestamp.now(),
+          likeCount: (data['likes'] as int?) ?? 0, // Ensure likeCount is an integer
+          likedBy: List<String>.from(data['likedBy'] ?? []),
+          imageUrl: data['imageUrl'],
+        );
+      }
+      return null;
+    } catch (e) {
+      print("Error retrieving post by ID: $e");
+      return null;
+    }
+  }
+
+
   Future<void> reportUserInFirebase(String postId, userId) async {
     final currentUserId = _auth.currentUser!.uid;
 
@@ -320,11 +377,48 @@ class DatabaseService {
   Future<void> blockUserInFirebase(String userId) async {
     final currentUserId = _auth.currentUser!.uid;
 
+    //Remove the blocked user from the current user's followers and following lists
+    await _db
+        .collection("Users")
+        .doc(currentUserId)
+        .collection("Following")
+        .doc(userId)
+        .delete();
+
+    await _db
+        .collection("Users")
+        .doc(currentUserId)
+        .collection("Followers")
+        .doc(userId)
+        .delete();
+
+    await _db
+        .collection("Users")
+        .doc(userId)
+        .collection("Following")
+        .doc(currentUserId)
+        ..delete();
+
+    await _db
+        .collection("Users")
+        .doc(userId)
+        .collection("Followers")
+        .doc(currentUserId)
+        ..delete();
+
+    // Add the user to the blocked list
     await _db
         .collection("Users")
         .doc(currentUserId)
         .collection("BlockedUsers")
         .doc(userId)
+        .set({});
+
+    await _db
+        .collection("Users")
+        .doc(userId)
+        .collection("BlockedBy")
+        .doc(currentUserId)
         .set({});
   }
 
@@ -337,6 +431,13 @@ class DatabaseService {
         .collection("BlockedUsers")
         .doc(blockedUserId)
         .delete();
+
+    await _db
+        .collection("Users")
+        .doc(blockedUserId)
+        .collection("BlockedBy")
+        .doc(currentUserId)
+        .delete();
   }
 
   Future<List<String>> getBlockedUidsFromFirebase() async {
@@ -346,6 +447,18 @@ class DatabaseService {
         .collection("Users")
         .doc(currentUserId)
         .collection("BlockedUsers")
+        .get();
+
+    return snapshot.docs.map((doc) => doc.id).toList();
+  }
+
+  Future<List<String>> getBlockedByFromFirebase() async {
+    final currentUserId = _auth.currentUser!.uid;
+
+    final snapshot = await _db
+        .collection("Users")
+        .doc(currentUserId)
+        .collection("BlockedBy")
         .get();
 
     return snapshot.docs.map((doc) => doc.id).toList();

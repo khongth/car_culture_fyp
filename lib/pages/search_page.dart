@@ -1,7 +1,6 @@
 import 'package:car_culture_fyp/components/user_list_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../services/database_provider.dart';
 
 class SearchPage extends StatefulWidget {

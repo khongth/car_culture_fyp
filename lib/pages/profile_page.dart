@@ -43,7 +43,9 @@ class _ProfilePageState extends State<ProfilePage> {
   String? currentUserId;
   bool _isLoading = true;
   bool _isFollowing = false;
+  bool _isBlockedBy = false;
   File? _selectedImage;
+  List<UserProfile>? blockedByList;
 
   @override
   void initState() {
@@ -60,11 +62,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
     await databaseProvider.loadUserFollowers(widget.uid);
     await databaseProvider.loadUserFollowing(widget.uid);
+    await loadBlockedBy();
 
     _isFollowing = databaseProvider.isFollowing(widget.uid);
 
     setState(() {
       _isLoading = false;
+    });
+  }
+
+  Future<void> loadBlockedBy() async {
+    await databaseProvider.loadBlockedBy();
+
+    List<String> blockedByUserIds = databaseProvider.blockedBy.map((user) => user.uid).toList();
+
+    setState(() {
+      _isBlockedBy = blockedByUserIds.contains(widget.uid);
     });
   }
 
@@ -215,7 +228,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final followerCount = listeningProvider.getFollowerCount(widget.uid);
     final followingCount = listeningProvider.getFollowingCount(widget.uid);
-
+    
     return Scaffold(
       appBar: AppBar(
         foregroundColor: Theme.of(context).colorScheme.tertiary,
@@ -301,7 +314,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              if (user != null && user!.uid != currentUserId)
+
+              if (!_isBlockedBy && user != null && user!.uid != currentUserId)
+
                 Row(
                   children: [
                     Expanded(

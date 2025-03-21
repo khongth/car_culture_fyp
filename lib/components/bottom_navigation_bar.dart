@@ -11,8 +11,10 @@ import 'package:iconly/iconly.dart';
 import '../models/marketplace.dart';
 import '../models/post.dart';
 import '../models/user.dart';
+import '../pages/discover_friends_page.dart';
 import '../pages/home_page.dart';
 import '../pages/marketplace_item_page.dart';
+import '../pages/my_comments_page.dart';
 import '../pages/post_page.dart';
 import '../pages/search_page.dart';
 import '../pages/profile_page.dart';
@@ -49,7 +51,7 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
     SearchPage(onDrawerOpen: openDrawer, onUserTap: openProfilePage),
     MapPage(onDrawerOpen: openDrawer),
     MarketplacePage(onDrawerOpen: openDrawer),
-    MarketplacePage(onDrawerOpen: openDrawer),
+    SettingsPage(),
   ];
 
   @override
@@ -95,7 +97,8 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
       _selectedPost = post;
       _selectedUserId = null;
     });
-    _postPageController.forward();
+    _postPageController.forward(); // Ensure this controller is being triggered
+    print("Navigating to post with ID: ${post.id}");
   }
 
   void openProfilePage(String uid) {
@@ -165,7 +168,6 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
 
     return Stack(
       children: [
-        // Drawer (Fixed on the left)
         Positioned(
           left: 0,
           top: 0,
@@ -180,11 +182,26 @@ class BottomNavWrapperState extends State<BottomNavWrapper> with TickerProviderS
                   children: [
                     _buildDrawerHeader(),
                     const SizedBox(height: 10),
-                    MyDrawerTile(text: "Profile", icon: IconlyBold.profile, onTap: closeDrawer),
-                    MyDrawerTile(text: "Forum", icon: IconlyBroken.category, onTap: closeDrawer),
-                    MyDrawerTile(text: "Car Clubs", icon: IconlyBroken.game, onTap: closeDrawer),
-                    MyDrawerTile(text: "Maps", icon: IconlyBroken.home, onTap: closeDrawer),
-                    MyDrawerTile(text: "Settings", icon: IconlyBroken.setting, onTap: closeDrawer),
+                    MyDrawerTile(text: "Discover Friends", icon: IconlyLight.add_user, onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => DiscoverFriendsPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    MyDrawerTile(text: "My Comments", icon: IconlyLight.chat, onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MyCommentsPage()),
+                      );
+                    },),
+                    MyDrawerTile(text: "Settings", icon: IconlyLight.setting, onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SettingsPage()),
+                      );
+                    }),
                     const Spacer(),
                     SafeArea(
                       child: MyDrawerTile(
