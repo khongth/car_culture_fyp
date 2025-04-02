@@ -8,6 +8,7 @@ class UserProfile {
   final String username;
   final String bio;
   final String profileImageUrl;
+  final Timestamp dateCreated;
 
   UserProfile ({
     required this.uid,
@@ -15,6 +16,7 @@ class UserProfile {
     required this.username,
     required this.bio,
     required this.profileImageUrl,
+    required this.dateCreated,
   });
 
   factory UserProfile.fromDocument(DocumentSnapshot doc) {
@@ -24,6 +26,7 @@ class UserProfile {
       username: doc['username'],
       bio: doc['bio'],
       profileImageUrl: doc['profileImageUrl'],
+      dateCreated: doc['dateCreated'],
     );
   }
 
@@ -34,6 +37,7 @@ class UserProfile {
       'username': username,
       'bio': bio,
       'profileImageUrl': profileImageUrl,
+      'dateCreated': dateCreated,
     };
   }
 }

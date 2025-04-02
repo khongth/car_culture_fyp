@@ -58,7 +58,11 @@ class _CommentTileState extends State<CommentTile> {
   void _showOptions() {
     final String? currentUserId = context.read<AuthCubit>().state.user?.uid;
     final bool isOwnComment = widget.comment.uid == currentUserId;
+    final bool isAdmin = currentUserId == 'u8VmTy8ar2hMRtNfZUZsqfI1Bx03';
     final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
+
+    print(isAdmin);
+    print(currentUserId);
 
     showModalBottomSheet(
         context: context,
@@ -66,7 +70,7 @@ class _CommentTileState extends State<CommentTile> {
           return SafeArea(
             child: Wrap(
               children: [
-                if (isOwnComment)
+                if (isOwnComment || isAdmin)
                   ListTile(
                     leading: const Icon(IconlyBold.delete),
                     title: const Text("Delete"),

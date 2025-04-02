@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/event.dart';
 import '../models/marketplace.dart';
 import '../models/post.dart';
+import '../models/report.dart';
 
 //Handles data to and from firebase
 class DatabaseService {
@@ -26,6 +27,7 @@ class DatabaseService {
 
     String username = email.split('@')[0];
     String defaultProfileImageUrl = await _getDefaultProfileImageUrl();
+    Timestamp dateCreated = Timestamp.now();
 
     UserProfile user = UserProfile(
       uid: uid,
@@ -33,6 +35,7 @@ class DatabaseService {
       username: username,
       bio: '',
       profileImageUrl: defaultProfileImageUrl,
+      dateCreated: dateCreated,
     );
 
     final userMap = user.toMap();
@@ -360,17 +363,65 @@ class DatabaseService {
     }
   }
 
-  Future<void> reportUserInFirebase(String postId, userId) async {
+  Future<Comment?> getCommentById(String commentId) async {
+    try {
+      final doc = await _db.collection('Comments').doc(commentId).get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        return Comment(
+          id: doc.id,
+          postId: data['postId'] ?? '',
+          uid: data['uid'] ?? '',
+          name: data['name'] ?? '',
+          username: data['username'] ?? '',
+          message: data['message'] ?? '',
+          timestamp: data['timestamp'] ?? Timestamp.now(),
+          imageUrl: data['imageUrl'],
+        );
+      }
+
+      // If the document does not exist, return null
+      return null;
+    } catch (e) {
+      print("Error retrieving comment by ID: $e");
+      return null;
+    }
+  }
+
+  Future<void> reportUserInFirebase(String postId, String userId) async {
     final currentUserId = _auth.currentUser!.uid;
 
-    final report = {
-      'reportedBy': currentUserId,
-      'messageId': postId,
-      'messageOwnerId': userId,
-      'timestamp': FieldValue.serverTimestamp()
-    };
+    final report = Report(
+      id: '',
+      reportedBy: currentUserId,
+      messageId: postId,
+      messageOwnerId: userId,
+      timestamp: FieldValue.serverTimestamp(),
+    );
 
-    await _db.collection("Reports").add(report);
+    try {
+      await _db.collection('Reports').add(report.toMap());  // Add the report to the 'Reports' collection
+    } catch (e) {
+      print("Error reporting user: $e");
+    }
+  }
+
+  Future<List<Report>> getReportsFromFirebase() async {
+    try {
+      QuerySnapshot snapshot = await _db
+          .collection('Reports')
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return Report.fromDocument(doc);  // Convert document to Report object
+      }).toList();
+    } catch (e) {
+      print("Error retrieving reports: $e");
+      return [];
+    }
   }
 
   Future<void> blockUserInFirebase(String userId) async {
@@ -632,7 +683,6 @@ class DatabaseService {
         .add(newMessage.toMap());
   }
 
-
   Future<String?> uploadImageToStorage(File imageFile) async {
     try {
       String filePath = 'chat_images/${DateTime.now().toIso8601String()}.jpg';
@@ -655,7 +705,7 @@ class DatabaseService {
         .collection("Chat")
         .doc(chatRoomID)
         .collection("Messages")
-        .orderBy("timestamp", descending: true)
+        .orderBy("timestamp", descending: false)
         .snapshots();
   }
 
@@ -728,6 +778,14 @@ class DatabaseService {
     } catch (e) {
       print("Error fetching user marketplace listings: $e");
       return [];
+    }
+  }
+
+  Future<void> deleteMarketplacePost(String postId) async {
+    try {
+      await _db.collection("Marketplace").doc(postId).delete();
+    } catch (e) {
+      print("Error deleting marketplace post: $e");
     }
   }
 
@@ -808,6 +866,24 @@ class DatabaseService {
       print("Error fetching latest message: $e");
       return null;
     }
+  }
+
+  Future<void> addEventBookmark(String eventId) async {
+    final uid = _auth.currentUser!.uid;
+    await _db.collection("Users").doc(uid).collection("BookmarkedEvents").doc(eventId).set({});
+  }
+
+// Remove a bookmark
+  Future<void> removeEventBookmark(String eventId) async {
+    final uid = _auth.currentUser!.uid;
+    await _db.collection("Users").doc(uid).collection("BookmarkedEvents").doc(eventId).delete();
+  }
+
+// Get all bookmarked event IDs
+  Future<List<String>> getBookmarkedEventIds() async {
+    final uid = _auth.currentUser!.uid;
+    final snapshot = await _db.collection("Users").doc(uid).collection("BookmarkedEvents").get();
+    return snapshot.docs.map((doc) => doc.id).toList();
   }
 }
 

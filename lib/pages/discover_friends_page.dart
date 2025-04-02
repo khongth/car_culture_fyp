@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:car_culture_fyp/models/user.dart';
 import '../components/user_list_tile.dart';
@@ -9,6 +10,8 @@ class DiscoverFriendsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String currentUserUid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Discover Friends"),
@@ -16,7 +19,9 @@ class DiscoverFriendsPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('Users')
-            .limit(20) // Limit to the most recent 20 users
+            .orderBy('dateCreated', descending: true)
+            .where('uid', isNotEqualTo: currentUserUid)
+            .limit(20)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

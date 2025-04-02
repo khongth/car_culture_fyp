@@ -10,6 +10,7 @@ import '../models/comment.dart';
 import '../models/event.dart';
 import '../models/marketplace.dart';
 import '../models/message.dart';
+import '../models/report.dart';
 
 class DatabaseProvider extends ChangeNotifier {
   final _db = DatabaseService();
@@ -214,6 +215,50 @@ class DatabaseProvider extends ChangeNotifier {
     await _db.reportUserInFirebase(postId, userId);
   }
 
+  List<Report> _reports = [];
+  List<Report> get reports => _reports;
+
+  Future<void> loadReports() async {
+    try {
+      // Fetch reports from Firebase
+      _reports = await _db.getReportsFromFirebase();
+      notifyListeners();
+    } catch (e) {
+      print("Error loading reports: $e");
+    }
+  }
+
+  Future<bool> isPost(String messageId) async {
+    final post = await _db.getPostById(messageId);
+
+    return post != null;
+  }
+
+  Future<String> getUserEmail(String uid) async {
+    final userProfile = await _db.getUserFromFirebase(uid);
+    return userProfile?.email ?? 'Unknown User';
+  }
+
+  Future<String> getPostOrCommentMessage(String messageId) async {
+    final post = await _db.getPostById(messageId);
+    if (post != null) {
+      return post.message; // Assuming it's a post
+    }
+
+    final comment = await _db.getCommentById(messageId);
+    return comment?.message ?? 'No message available';
+  }
+
+  Future<Comment?> getCommentById(String commentId) async {
+    try {
+      // Use the database service to fetch the comment
+      return await _db.getCommentById(commentId);
+    } catch (e) {
+      print("Error fetching comment by ID in provider: $e");
+      return null;
+    }
+  }
+
   final Map<String, List<String>> _followers = {};
   final Map<String, List<String>> _following = {};
   final Map<String, int> _followerCount = {};
@@ -416,6 +461,12 @@ class DatabaseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteMarketplacePost(String postId) async {
+    await _db.deleteMarketplacePost(postId);
+
+    await loadMarketplacePosts();
+  }
+
   Future<void> loadYourMarketplaceListing() async {
     String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null) return;
@@ -485,4 +536,26 @@ class DatabaseProvider extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  Set<String> _bookmarkedEventIds = {};
+  Set<String> get bookmarkedEventIds => _bookmarkedEventIds;
+
+  Future<void> loadBookmarkedEvents() async {
+    _bookmarkedEventIds = Set.from(await _db.getBookmarkedEventIds());
+    notifyListeners();
+  }
+
+  Future<void> toggleBookmarkEvent(String eventId) async {
+    if (_bookmarkedEventIds.contains(eventId)) {
+      await _db.removeEventBookmark(eventId);
+      _bookmarkedEventIds.remove(eventId);
+    } else {
+      await _db.addEventBookmark(eventId);
+      _bookmarkedEventIds.add(eventId);
+    }
+    notifyListeners();
+  }
+
+  bool isEventBookmarked(String eventId) => _bookmarkedEventIds.contains(eventId);
+
 }

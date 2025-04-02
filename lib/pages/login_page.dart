@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
-import '../auth/auth_cubit.dart'; // Import the AuthCubit
-import '../auth/auth_state.dart'; // Import the AuthState
+import '../auth/auth_cubit.dart';
+import '../auth/auth_state.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:lottie/lottie.dart';
-
 import '../components/loading_screen.dart';
-import '../services/database_provider.dart';
 import '../themes/theme_provider.dart';
 
 class LoginPage extends StatelessWidget {
+  final String adminUid = 'u8VmTy8ar2hMRtNfZUZsqfI1Bx03';
 
   @override
   Widget build(BuildContext context) {
@@ -29,8 +27,15 @@ class LoginPage extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(state.successMessage!),
               ));
-              if (state.successMessage == "Login successful" || state.successMessage == "Signup successful") {
-                Navigator.pushReplacementNamed(context, '/home');  // Navigate to home screen
+              if (state.successMessage == "Login successful" ||
+                  state.successMessage == "Signup successful") {
+                if (state.user?.uid == adminUid) {
+                  // If the user is the admin, redirect to AdminPage
+                  Navigator.pushReplacementNamed(context, '/admin');
+                } else {
+                  // Otherwise, go to the home page for regular users
+                  Navigator.pushReplacementNamed(context, '/home');
+                }
               }
             }
           },

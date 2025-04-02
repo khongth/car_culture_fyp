@@ -171,7 +171,10 @@ class _PostTileState extends State<PostTile> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context), 
-              child: Text("Cancel")
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+              )
           ),
           TextButton(
               onPressed: () async{
@@ -182,7 +185,10 @@ class _PostTileState extends State<PostTile> {
                 ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Message reported!")));
               },
-              child: Text("Report")
+              child: Text(
+                "Report",
+                style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+              )
           )
         ],
       )
@@ -198,7 +204,10 @@ class _PostTileState extends State<PostTile> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("Cancel")
+                child: Text(
+                  "Cancel",
+                  style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+                )
             ),
             TextButton(
                 onPressed: () async{
@@ -209,7 +218,10 @@ class _PostTileState extends State<PostTile> {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("User Blocked!")));
                 },
-                child: Text("Block")
+                child: Text(
+                  "Block",
+                  style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+                )
             )
           ],
         )

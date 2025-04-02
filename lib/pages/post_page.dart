@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:car_culture_fyp/components/comment_tile.dart';
 import 'package:car_culture_fyp/services/database_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../auth/auth_cubit.dart';
 import '../components/comment_input.dart';
 import '../helper/navigatet_pages.dart';
 import '../models/post.dart';
@@ -86,6 +88,127 @@ class _PostPageState extends State<PostPage> {
     }
   }
 
+  void _showOptions() {
+    String? currentUserId = context.read<AuthCubit>().state.user?.uid;
+    final bool isOwnPost = widget.post.uid == currentUserId;
+    final bool isAdmin = currentUserId == 'u8VmTy8ar2hMRtNfZUZsqfI1Bx03';
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              if (isOwnPost || isAdmin)
+                ListTile(
+                  leading: const Icon(IconlyBold.delete),
+                  title: const Text("Delete"),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    await databaseProvider.deletePost(widget.post.id);
+                  },
+                )
+              else ...[
+                ListTile(
+                  leading: const Icon(Icons.flag),
+                  title: const Text("Report"),
+                  onTap: () {
+                    Navigator.pop(context);
+
+                    _reportPostConfirmationBox();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.block),
+                  title: const Text("Block User"),
+                  onTap: () {
+                    Navigator.pop(context);
+
+                    _blockUserConfirmationBox();
+                  },
+                ),
+              ],
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: const Text("Cancel"),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _reportPostConfirmationBox() {
+    showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Report Message"),
+          content: const Text("Are you sure you want to report this message?"),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                    "Cancel",
+                    style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+                )
+            ),
+            TextButton(
+                onPressed: () async{
+                  await databaseProvider.reportUser(widget.post.id, widget.post.uid);
+
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Message reported!")));
+                },
+                child: Text(
+                    "Report",
+                    style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+                )
+            )
+          ],
+        )
+    );
+  }
+
+  void _blockUserConfirmationBox() {
+    showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Block User"),
+          content: const Text("Are you sure you want to block this user?"),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                    "Cancel",
+                    style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+                )
+            ),
+            TextButton(
+                onPressed: () async{
+                  await databaseProvider.blockUser(widget.post.uid);
+
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("User Blocked!")));
+                },
+                child: Text(
+                    "Block",
+                    style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary)
+                )
+            )
+          ],
+        )
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Listen to all comments for this post
@@ -106,6 +229,12 @@ class _PostPageState extends State<PostPage> {
           icon: Icon(Icons.arrow_back),
           onPressed: widget.onClose, // Close post on back press
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.more_horiz),
+            onPressed: _showOptions,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -333,4 +462,7 @@ class _PostPageState extends State<PostPage> {
       ),
     );
   }
+
+  // More options function
+
 }

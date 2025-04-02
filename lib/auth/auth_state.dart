@@ -6,6 +6,7 @@ class AuthState {
   final String? errorMessage;
   final User? user;
   final String? username;
+  final bool isAdmin;
 
   AuthState({
     this.isLoading = false,
@@ -13,6 +14,7 @@ class AuthState {
     this.successMessage,
     this.errorMessage,
     this.user,
+    this.isAdmin = false,
   });
 
   AuthState copyWith({
@@ -21,6 +23,7 @@ class AuthState {
     String? errorMessage,
     User? user,
     String? username,
+    bool? isAdmin,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
@@ -28,6 +31,7 @@ class AuthState {
       errorMessage: errorMessage,
       user: user ?? this.user,
       username: username ?? this.username,
+      isAdmin: isAdmin ?? this.isAdmin,
     );
   }
 }

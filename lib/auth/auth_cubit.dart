@@ -9,7 +9,9 @@ class AuthCubit extends Cubit<AuthState> {
 
   final DatabaseService _db = DatabaseService();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final ThemeProvider themeProvider; // ✅ Ensure this is initialized
+  final ThemeProvider themeProvider;
+
+  static const String adminUid = 'u8VmTy8ar2hMRtNfZUZsqfI1Bx03';
 
   AuthCubit(this.themeProvider) : super(AuthState(user: FirebaseAuth.instance.currentUser)) {
     fetchUser();
@@ -22,10 +24,12 @@ class AuthCubit extends Cubit<AuthState> {
       await user.reload();
       user = _firebaseAuth.currentUser;
 
+      bool isAdmin = user?.uid == adminUid;
+
       UserProfile? userProfile = await _db.getUserFromFirebase(user!.uid);
       String? username = userProfile?.username;
 
-      emit(AuthState(user: user, username: username)); // ✅ Emit updated user info
+      emit(AuthState(user: user, username: username, isAdmin: isAdmin));
     }
   }
 

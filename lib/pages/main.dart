@@ -12,6 +12,8 @@ import '../firebase_options.dart';
 import '../home/home_cubit.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import 'admin_page.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -74,6 +76,7 @@ class CarCultureApp extends StatelessWidget {
       routes: {
         '/home': (context) => BottomNavWrapper(),
         '/login': (context) => LoginPage(),
+        '/admin': (context) => AdminPage(),
       },
       home: LoginPage(),
     );

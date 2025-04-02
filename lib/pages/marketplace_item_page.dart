@@ -1,12 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
+import '../auth/auth_cubit.dart';
 import '../components/marketplace_recent_listings.dart';
 import '../components/user_list_tile.dart';
 import '../helper/navigatet_pages.dart';
 import '../models/marketplace.dart';
 import '../models/user.dart';
 import '../services/database_provider.dart';
+import 'marketplace_page.dart';
 
 class MarketplaceItemPage extends StatefulWidget {
   final MarketplacePost post;
@@ -21,6 +24,9 @@ class MarketplaceItemPage extends StatefulWidget {
 class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
   UserProfile? _sellerProfile;
   List<MarketplacePost> _allListings = [];
+
+  late final listeningProvider = Provider.of<DatabaseProvider>(context);
+  late final databaseProvider = Provider.of<DatabaseProvider>(context, listen: false);
 
   @override
   void initState() {
@@ -49,6 +55,120 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
     });
   }
 
+  void _showOptions() {
+    String? currentUserId = context.read<AuthCubit>().state.user?.uid;
+    final bool isOwnPost = widget.post.uid == currentUserId;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              if (isOwnPost)
+                ListTile(
+                  leading: const Icon(IconlyBold.delete),
+                  title: const Text("Delete"),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    widget.onClose();
+                    await databaseProvider.deleteMarketplacePost(widget.post.id);
+                  },
+                )
+              else ...[
+                ListTile(
+                  leading: const Icon(Icons.flag),
+                  title: const Text("Report"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _reportPostConfirmationBox();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.block),
+                  title: const Text("Block User"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _blockUserConfirmationBox();
+                  },
+                ),
+              ],
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: const Text("Cancel"),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Report Post Dialog
+  void _reportPostConfirmationBox() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Report Message"),
+        content: const Text("Are you sure you want to report this message?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "Cancel",
+              style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              await databaseProvider.reportUser(widget.post.id, widget.post.uid);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Message reported!")));
+            },
+            child: Text(
+              "Report",
+              style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  // Block User Dialog
+  void _blockUserConfirmationBox() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Block User"),
+        content: const Text("Are you sure you want to block this user?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "Cancel",
+              style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              await databaseProvider.blockUser(widget.post.uid);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User Blocked!")));
+            },
+            child: Text(
+              "Block",
+              style: TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,6 +179,12 @@ class _MarketplaceItemPageState extends State<MarketplaceItemPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: widget.onClose,
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.more_horiz),
+            onPressed: _showOptions, // Show options menu
+          )
+        ],
       ),
       body: Container(
         child: Column(
